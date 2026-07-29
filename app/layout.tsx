@@ -18,11 +18,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "웹 스타터킷",
-    template: "%s – 웹 스타터킷",
+    default: "견적서 조회",
+    template: "%s – 견적서 조회",
   },
-  description:
-    "다양한 shadcn/ui 컴포넌트 라이브러리, 다크 모드, 대시보드 레이아웃을 갖춘 Next.js 스타터킷입니다.",
+  description: "노션 기반 견적서를 웹에서 조회하고 PDF로 다운로드할 수 있는 서비스입니다.",
 };
 
 export default function RootLayout({

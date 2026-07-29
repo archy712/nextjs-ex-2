@@ -1,5 +1,9 @@
 # CLAUDE.md
 
+**노션 기반 견적서 관리 시스템**은 노션을 데이터베이스로 활용해 견적서를 관리하고, 클라이언트가 웹에서 조회·PDF 다운로드할 수 있는 무인증 공개 서비스입니다.
+
+📋 상세 프로젝트 요구사항은 @/docs/PRD.md 참조
+
 이 파일은 이 저장소에서 코드 작업을 할 때 Claude Code(claude.ai/code)에게 제공하는 가이드입니다.
 
 @AGENTS.md
@@ -17,29 +21,23 @@ npm run lint    # ESLint (flat config: eslint-config-next core-web-vitals + type
 
 ## 아키텍처
 
-shadcn/ui 기반 Next.js App Router 스타터킷이며, UI 문구는 모두 한국어입니다.
+shadcn/ui 기반 Next.js App Router 프로젝트이며, UI 문구는 모두 한국어입니다. 완전히 무인증 공개 접근 서비스로 로그인/회원가입/폼 제출 기능이 없습니다 (상세는 `docs/PRD.md` 참고).
 
-### 라우트 그룹
+### 라우트 구조
 
-앱 루트(`app/layout.tsx`)는 전역 프로바이더만 설정합니다 — `next-themes`의 `ThemeProvider`(`attribute="class"`, `defaultTheme="system"`), Radix `TooltipProvider`, `sonner`의 `Toaster`. 실제 페이지 구조는 각자 독립된 레이아웃을 가진 두 개의 형제 라우트 그룹에 있습니다:
+앱 루트(`app/layout.tsx`)는 전역 프로바이더만 설정합니다 — `next-themes`의 `ThemeProvider`(`attribute="class"`, `defaultTheme="system"`), Radix `TooltipProvider`, `sonner`의 `Toaster`. 실제 페이지는 다음 두 종류뿐입니다 (아직 미구현):
 
-- **`app/(marketing)/`** — 공개 마케팅 사이트. `layout.tsx`가 children을 `Header` + `Footer`(`components/layout/`)로 감쌉니다. 랜딩 페이지(`page.tsx`)는 `components/sections/*`(hero, features, cta)로 구성됩니다.
-- **`app/(dashboard)/`** — 컴포넌트 쇼케이스 / 대시보드 셸. `layout.tsx`가 children을 shadcn `SidebarProvider` + `AppSidebar` + `DashboardTopbar`(`components/layout/`)로 감쌉니다. 모든 라우트는 `gallery/` 하위에 있습니다:
-  - `gallery/` — 개요
-  - `gallery/components` — 설치된 모든 UI 프리미티브를 한 페이지에 모아 렌더링 (버튼, 배지, 캘린더, 폼, 피드백, 오버레이, 내비게이션, 아바타/카드, 브레이크포인트 훅 데모 포함)
-  - `gallery/dashboard` — 통계 카드 + `DashboardChart`(recharts)
-  - `gallery/form` — `react-hook-form` + `zod` 전체 예제
-  - `gallery/table` — 테이블/리스트 패턴
+- **견적서 조회 페이지** (`/invoice/[id]`) — 클라이언트명, 항목, 금액 등을 표시하고 PDF 다운로드 버튼을 제공합니다.
+- **404/오류 페이지** — 존재하지 않는 견적서 ID, Notion 장애 시 503을 안내합니다.
 
-두 그룹 모두 같은 루트 레이아웃을 공유하므로, 마케팅 섹션과 대시보드 섹션 전반에서 테마와 토스트 상태가 일관되게 유지됩니다.
+"관리자 대시보드", "로그인", "설정" 같은 개념은 MVP 범위에 없으므로 스타터킷에 있던 마케팅 랜딩 페이지, 대시보드/갤러리 쇼케이스 라우트와 관련 레이아웃(`Header`/`Footer`/`AppSidebar`/`DashboardTopbar`)은 초기화 단계에서 제거되었습니다.
 
 ### UI 컴포넌트
 
-- `components/ui/*`는 shadcn CLI를 통해 Radix(`radix-ui` 패키지) 위에 생성된 shadcn/ui 프리미티브입니다 — 생성된(vendored) 코드로 취급하고, 내부 구현을 직접 손으로 고치기보다는 재생성하거나 조합해서 사용하는 것을 우선하세요.
+- `components/ui/*`는 shadcn CLI를 통해 Radix(`radix-ui` 패키지) 위에 생성된 shadcn/ui 프리미티브입니다 — 생성된(vendored) 코드로 취급하고, 내부 구현을 직접 손으로 고치기보다는 재생성하거나 조합해서 사용하는 것을 우선하세요. 견적서 조회 화면에는 특히 `table`, `card`, `badge`, `skeleton`이 필요합니다. 대시보드 전용이었던 `sidebar`, `chart`(recharts 래퍼)는 MVP 범위 밖이라 제거되었습니다.
 - `components.json`에 shadcn 설정이 고정되어 있습니다: `style: "radix-nova"`, `baseColor: "neutral"`, `iconLibrary: "lucide"`, CSS 변수 활성화, 경로 별칭 `@/components`, `@/components/ui`, `@/lib`, `@/hooks`(`tsconfig.json`의 `@/*` → 프로젝트 루트 매핑을 기반으로 함).
 - `lib/utils.ts`는 `cn()`(clsx + tailwind-merge)을 export합니다 — 코드베이스 전반에서 Tailwind 클래스를 병합/오버라이드하는 표준 방법입니다.
-- 폼은 `gallery/form/page.tsx`의 패턴을 따릅니다: `zod` 스키마 → `zodResolver` → `react-hook-form` → 레이아웃과 검증 표시를 위한 shadcn `Field`/`FieldGroup`/`FieldError` 컴포넌트(`components/ui/field.tsx`).
-- 차트는 `components/gallery/dashboard-chart.tsx`의 패턴을 따릅니다: `recharts` 프리미티브를 `ChartContainer`/`ChartTooltip`(`components/ui/chart.tsx`)로 감싸고, 시리즈를 `var(--chart-N)` CSS 토큰에 매핑하는 `ChartConfig`를 사용합니다.
+- `react-hook-form`/`@hookform/resolvers`/`zod`는 패키지로 남아있지만, 이 서비스에는 사용자 입력 폼이 없습니다. `zod`는 견적서 ID 라우트 파라미터 형식 검증과 Notion 응답 매핑 검증에만 사용하세요.
 
 ### 스타일링 / 테마
 
