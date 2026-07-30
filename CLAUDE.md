@@ -47,7 +47,7 @@ shadcn/ui 기반 Next.js App Router 프로젝트이며, UI 문구는 모두 한�
 
 `hooks/use-mobile.ts`는 `getServerSnapshot`을 갖춘 `useSyncExternalStore`를 사용하므로 구조적으로 SSR-safe합니다. `hooks/use-breakpoint.ts`는 태블릿/데스크톱 판별을 위해 `usehooks-ts`의 `useMediaQuery`를 감싸는데, 반드시 `{ initializeWithValue: false }` 옵션과 함께 호출해야 합니다 — 그렇지 않으면 클라이언트의 첫 렌더가 실제 `matchMedia` 값을 읽어버리는 반면 서버는 항상 기본값을 렌더링해 hydration mismatch가 발생합니다. 새로운 미디어 쿼리 기반 훅을 추가할 때도 동일한 규칙을 적용하세요.
 
-마찬가지로, 서버에서 렌더링되는 코드에서는 로케일을 고정하지 않은 `Date.prototype.toLocaleDateString()`/`toLocaleString()` 사용을 피하세요(예: `components/ui/calendar.tsx`는 대신 고정 토큰을 사용하는 `date-fns`의 `format()`을 사용합니다) — 서버와 브라우저가 서로 다른 기본 로케일을 사용할 경우 SSR/CSR 출력이 어긋날 수 있습니다.
+마찬가지로, 서버에서 렌더링되는 코드에서는 로케일을 고정하지 않은 `Date.prototype.toLocaleDateString()`/`toLocaleString()` 사용을 피하세요 — 대신 고정 토큰을 사용하는 `date-fns`의 `format()`을 사용하세요(예: 견적서 조회 페이지에서 `valid_until`을 렌더링할 때) — 서버와 브라우저가 서로 다른 기본 로케일을 사용할 경우 SSR/CSR 출력이 어긋날 수 있습니다.
 
 ## Claude Code 도구
 
