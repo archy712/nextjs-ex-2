@@ -39,6 +39,9 @@ yarn-error.log*
 # playwright mcp debug output
 /.playwright-mcp/
 
+# shrimp-task-manager MCP local data (has its own nested .git)
+/shrimp_data/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
