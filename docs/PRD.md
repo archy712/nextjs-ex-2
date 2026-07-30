@@ -1,6 +1,6 @@
 # 노션 기반 견적서 관리 시스템 MVP PRD
 
-> **v1.1** — `prd-validator` 기술 검증 결과를 반영해 구현 로직/데이터 모델/기술 스택을 재작성했습니다. 변경 이력은 문서 최하단 참고.
+> **v1.2** — `development-planner` 로드맵 작성 중 발견된 `use cache` 예제 오류를 수정했습니다. 변경 이력은 문서 최하단 참고.
 
 ## 🎯 핵심 정보
 
@@ -233,6 +233,8 @@ NOTION_ITEMS_DATA_SOURCE_ID=xxxxxxxxxxxxx
 
 ### 1. Notion 데이터 조회 (관계형 조회, 캐싱 포함)
 
+> `use cache`/`cacheTag`/`cacheLife`(F013)를 사용하려면 `next.config.ts`에 `cacheComponents: true`가 먼저 설정되어 있어야 합니다.
+
 ```ts
 // lib/notion/invoice.ts
 import { Client, isFullPage, APIResponseError, isNotionClientError } from '@notionhq/client'
@@ -244,9 +246,15 @@ const notion = new Client({
 
 const NOTION_ID_PATTERN = /^[0-9a-f]{32}$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+// 'use cache'는 함수 본문의 첫 문장이어야 하므로, 캐시 대상이 아닌 형식 검증은
+// 별도의 바깥쪽 함수에서 API 호출 없이 조기 차단한다 (F011).
 export async function getInvoice(rawId: string) {
-  if (!NOTION_ID_PATTERN.test(rawId)) return null // 형식 오류는 API 호출 없이 조기 차단 (F011)
+  if (!NOTION_ID_PATTERN.test(rawId)) return null
 
+  return getCachedInvoice(rawId)
+}
+
+async function getCachedInvoice(rawId: string) {
   'use cache'
   cacheTag(`invoice:${rawId}`)
   cacheLife('minutes') // stale 5분 / revalidate 1분 (기본값) — 발행 후 수정이 잦으면 조정
@@ -385,6 +393,10 @@ export const formatDate = (d: Date) => format(d, 'yyyy.MM.dd') // date-fns, 이�
 
 ## 📝 변경 이력
 
+**v1.2** (`development-planner` 로드맵 작성 중 발견된 오류 수정):
+- `getInvoice` 예제에서 `'use cache'`가 함수 첫 문장이 아니어서(ID 형식 검증이 앞에 위치) 동작하지 않던 문제 수정 — 검증 전용 바깥 함수(`getInvoice`)와 캐시 대상 내부 함수(`getCachedInvoice`)로 분리
+- `use cache`/`cacheTag`/`cacheLife`(F013) 사용의 전제 조건인 `next.config.ts`의 `cacheComponents: true` 설정 필요 사실을 명시 (저장소에도 반영 완료)
+
 **v1.1** (기술 검증 반영):
 - Notion API 2025-09 개편(`databases.query` → `dataSources.query`, `data_source_id` 도입) 반영
 - 항목 조회를 역방향 relation 필터 쿼리로 재설계 (25개 절단·N+1 문제 해결)
@@ -399,6 +411,6 @@ export const formatDate = (d: Date) => format(d, 'yyyy.MM.dd') // date-fns, 이�
 
 ---
 
-**📝 문서 버전**: v1.1
+**📝 문서 버전**: v1.2
 **📅 작성일**: 2026-07-30
 **🎯 목표**: 최소 기능으로 빠른 출시 후 사용자 피드백 기반 개선
