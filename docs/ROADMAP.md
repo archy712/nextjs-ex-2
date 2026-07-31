@@ -219,10 +219,11 @@ Phase 0(초기화)까지는 이미 완료된 상태이며, 아래 자산을 그�
 
 - **Task 012: PDF 다운로드 및 인쇄 전용 스타일 구현 (F003)** ✅ - 완료
   - ✅ `components/invoice/download-button.tsx`를 `'use client'`로 전환, `onClick={() => window.print()}` 연결
-  - ✅ `app/globals.css`에 `@media print` 블록 추가: `[data-slot="button"]`(현재 페이지엔 다운로드 버튼뿐)·`[data-sonner-toaster]` 숨김. 배경/텍스트는 `:root`와 `.dark`를 인쇄 시 동일한 라이트 톤 CSS 변수로 오버라이드하는 방식으로 강제(개별 요소에 `color: black` 하드코딩 대신 기존 토큰 체계를 그대로 활용). `[data-slot="badge"]`(만료 뱃지처럼 배경색이 정보를 전달하는 곳)에만 `print-color-adjust: exact` 적용
+  - ✅ `app/globals.css`에 `@media print` 블록 추가: `[data-sonner-toaster]` 숨김(다운로드 버튼은 컴포넌트에 직접 `print:hidden` 적용 — 아래 code-reviewer 반영 참조). 배경/텍스트는 `:root`와 `.dark`를 인쇄 시 동일한 라이트 톤 CSS 변수로 오버라이드하는 방식으로 강제(개별 요소에 `color: black` 하드코딩 대신 기존 토큰 체계를 그대로 활용). `[data-slot="badge"]`(만료 뱃지처럼 배경색이 정보를 전달하는 곳)에만 `print-color-adjust: exact` 적용
   - ✅ `@page { size: A4; margin: 12mm }`, `thead { display: table-header-group }`, `tr/td/th { break-inside: avoid }` 추가. `InvoiceTotal` 카드에 `print:break-inside-avoid`로 합계 블록 자체가 페이지 중간에 잘리지 않도록 처리
   - ✅ `a[href]::after { content: none }`로 브라우저 기본 인쇄 스타일이 링크 뒤에 URL을 붙이는 것을 방지, `app/invoice/[id]/page.tsx`의 `<main>`에 `print:max-w-none print:p-0 print:gap-4`로 화면용 중앙 정렬 여백을 인쇄 시 제거
   - ⚠️ **라이브 검증 중 발견한 실제 버그와 수정**: A4 인쇄 가능 폭(12mm 여백 기준 약 703px)이 `md:` 브레이크포인트(768px)보다 좁아, `print:` 없이는 인쇄가 **모바일 카드 레이아웃**으로 렌더링되어 `thead` 헤더 반복이 무력화되고 카드가 페이지 경계에서 중간 절단되는 실제 문제를 Playwright로 PDF를 직접 생성해 확인함. `components/invoice/invoice-items-table.tsx`의 두 래퍼에 `print:block`/`print:hidden`을 추가해 인쇄 시 항상 표 레이아웃을 쓰도록 고정하여 해결(수정 후 재검증 통과)
+  - ✅ **code-reviewer 반영**: ① `@media print`의 `:root`/`.dark` 토큰 오버라이드에 `--destructive`가 빠져 있어, 다크 모드에서 인쇄하면 배경만 흰색으로 강제되고 만료 뱃지는 다크 모드용으로 튜닝된 밝은 빨강을 그대로 써 라이트 모드와 대비가 달라지는 문제 → `--destructive`를 라이트 값으로 함께 오버라이드해 수정(다크 모드 + 만료 뱃지 조합으로 재검증). ② 전역 `[data-slot="button"]` 셀렉터로 모든 버튼을 인쇄 시 숨기면 향후 추가될 링크형 버튼(`asChild`)까지 의도치 않게 사라질 수 있다는 지적 → 전역 규칙 제거, `download-button.tsx`에 `print:hidden`을 직접 적용해 다른 컴포넌트(`invoice-total.tsx`/`invoice-items-table.tsx`)와 동일하게 컴포넌트 단위 `print:` variant로 통일. ③ `--muted-foreground`를 `--foreground`와 완전히 동일한 값으로 강제해 "합계 금액" 라벨 등의 시각적 위계가 인쇄물에서 사라지던 문제 → `oklch(0.35 0 0)`로 완화해 위계 유지
   - **관련 기능**: F003
   - **검증 요약**: `npx tsc --noEmit`/`npm run lint` 무경고 통과. 테스트 체크리스트 8종 전부 Playwright MCP로 라이브 검증 — 아래 참조. 항목 50개/0개 케이스는 실제 Notion 워크스페이스에 해당 데이터가 없어(Task008/009에서도 동일 사유로 미검증) 임시 라우트(`app/print-test-*-temp`, `lib/invoice/fixtures.ts`와 동일한 방식으로 합성 데이터 사용)로 검증 후 삭제(`git status`로 잔여물 없음 확인)
 
