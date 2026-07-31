@@ -250,65 +250,46 @@ Phase 0(초기화)까지는 이미 완료된 상태이며, 아래 자산을 그�
 
 > **PRD 상의 비기능 요구사항(NFR) 확인 결과**: `docs/PRD.md`에는 응답 시간·처리량·가용성 목표나 분석·모니터링 도구 도입 요구가 **명시되어 있지 않습니다**. 따라서 Phase 5는 "PRD에 없는 기능을 새로 만드는 단계"가 아니라, **① PRD 사용자 여정에 이미 적힌 동작 보장 ② 기준선 측정·기록 ③ 배포**만 다룹니다. 특히 발행자 여정 4단계의 *"이후 Notion에서 내용을 수정하면, 클라이언트가 다시 열람할 때 **항상 최신 데이터**로 표시됨"* 이 Phase 5에서 지켜야 할 유일한 명시적 품질 요구사항이며, 캐싱 전략 결정을 직접 구속합니다. 성능 대시보드, APM, 외부 로깅 SaaS, 알림 연동 등은 PRD 범위 밖이므로 도입하지 않습니다.
 
-- **Task 014: 성능·캐싱 전략 및 관측성 구성** - 우선순위
+- **Task 014: 성능·캐싱 전략 및 관측성 구성** ✅ - 완료
 
-  **관련 파일**
-  - `app/invoice/[id]/page.tsx` — `getValidatedInvoice`(React `cache()`), 503 catch 블록의 `console.error` 한 줄
-  - `app/invoice/[id]/error.tsx` — `console.error(error)` (digest 기록 형태로 정리 대상)
-  - `lib/notion/invoice-repository.ts` — `getInvoiceById`(`Promise.allSettled` 병렬 + `queryAllInvoiceItems` 페이지네이션)
-  - `lib/notion/client.ts` — SDK `timeoutMs: 5000`, `retry: { maxRetries: 1 }`
-  - `next.config.ts` — `cacheComponents: true`
-  - (신규 가능) `lib/observability/log.ts` — 구조화 로그 헬퍼. **단계 3에서 "한 줄 개선으로 충분"하다고 판단되면 파일을 만들지 않는다**
-  - `docs/ROADMAP.md` — 캐싱 전략 결정 기록
-
-  **현재 상태(재조사 불필요)**
-  - 견적서 1건 조회 = `pages.retrieve` 1회 + `dataSources.query` 1회(항목 100개 이하 기준)로 **총 2회**, 두 호출은 이미 병렬(`Promise.allSettled`)
-  - `generateMetadata`와 페이지 본문의 중복 호출은 React `cache()`로 이미 제거됨(Task 009)
-  - 코드베이스 어디에도 `"use cache"`/`cacheLife`/`cacheTag`가 없어 조회 경로는 **의도적으로 dynamic** 유지 중(Task 008)
-  - 관측성은 `console.error("[invoice] Notion 조회 실패:", error)` 한 줄이 전부
-
-  **캐싱 전략 선택지 (단계 1에서 하나를 선택하고 근거를 이 문서에 기록)**
+  **캐싱 전략 선택지 (A/B/C)**
 
   | 선택지 | 내용 | 장점 | 단점/리스크 |
   |---|---|---|---|
-  | **A. dynamic 유지 (현행)** | `"use cache"` 미사용. 요청마다 Notion 2회 호출, PPR 셸 + `loading.tsx`로 체감 지연 완화 | PRD의 "항상 최신 데이터" 요구를 **무조건** 충족. 만료 뱃지(`isInvoiceExpired`)·금액 수정이 즉시 반영. 추가 코드 0 | 조회 1건마다 Notion 왕복이 TTFB에 그대로 반영. 동일 링크가 단시간에 대량 열람되면 Notion rate limit(통합당 평균 약 3 req/s) 접근 가능 |
-  | **B. `use cache` + `cacheLife` + `cacheTag`** | `getInvoiceById`(또는 페이지 데이터 함수)에 `"use cache"` 적용, `cacheLife`로 짧은 주기(예: revalidate 60초) 지정, `cacheTag("invoice-<id>")` 부여 | 반복 조회 시 Notion 호출 급감, TTFB 안정화 | **최신성이 revalidate 주기만큼 지연 → PRD 여정 4단계와 정면 충돌**. Notion → 앱 방향 webhook이 MVP 범위 밖이라 `revalidateTag` 무효화 트리거가 없어 태그가 사실상 사용되지 않음. 만료된 견적서를 유효한 것처럼 잠시 보여줄 수 있음 |
-  | **C. 절충: 셸만 정적 + 데이터 dynamic** | 현재 PPR 동작 그대로(레이아웃/스켈레톤은 프리렌더, 데이터는 dynamic) | A와 동일한 최신성 + 셸 즉시 응답 | 실질적으로 A와 동일 — 별도 작업이 아니라 **A의 정확한 서술** |
+  | **A. dynamic 유지 (현행)** | `"use cache"` 미사용. 요청마다 Notion 2회 호출, PPR 셸 + `loading.tsx`로 체감 지연 완화 | PRD의 "항상 최신 데이터" 요구를 **무조건** 충족. 만료 뱃지(`isInvoiceExpired`)·금액 수정이 즉시 반영. 추가 코드 0 | 조회 1건마다 Notion 왕복이 TTFB에 그대로 반영. 동일 링크가 단시간에 대량 열람되면 Notion rate limit 접근 가능 |
+  | **B. `use cache` + `cacheLife` + `cacheTag`** | `getInvoiceById`에 `"use cache"` 적용, 짧은 revalidate 주기 + `cacheTag` 부여 | 반복 조회 시 Notion 호출 급감, TTFB 안정화 | **최신성이 revalidate 주기만큼 지연 → PRD 여정 4단계와 정면 충돌**. Notion → 앱 방향 webhook이 MVP 범위 밖이라 `revalidateTag` 무효화 트리거가 없음 |
+  | **C. 절충: 셸만 정적 + 데이터 dynamic** | 현재 PPR 동작 그대로 | A와 동일한 최신성 + 셸 즉시 응답 | 실질적으로 A와 동일 |
 
-  > **권고**: PRD에 캐싱을 정당화할 트래픽·성능 목표가 없고, 최신성은 PRD에 명시된 요구사항이므로 **A(=C) 유지**를 기본안으로 한다. B는 단계 5의 측정 결과가 명백히 문제(예: TTFB가 기준선을 크게 초과)일 때만 재검토하고, 채택 시 반드시 "최신성 지연 허용" 결정을 PRD 소유자와 확인한 뒤 이 문서에 기록한다.
-
-  **구현 단계**
-  - [ ] 1. 캐싱 전략 결정 — 위 표의 A/B/C 중 하나를 선택하고, 선택 근거와 포기한 이점을 이 Task의 본문에 기록. B를 선택하는 경우 `node_modules/next/dist/docs/`에서 현재 Next.js 16.2.12의 `cacheLife`/`cacheTag` 정확한 import 경로·시그니처·안정성 표기를 **먼저 확인**(AGENTS.md 규칙)
-  - [ ] 2. 결정 사항을 코드에 명문화 — A 유지 시 `lib/notion/invoice-repository.ts` 또는 `app/invoice/[id]/page.tsx` 상단에 "의도적으로 캐시하지 않음(사유: PRD 최신성 요구)" 주석을 남겨 이후 작업자가 실수로 `"use cache"`를 추가하지 않게 함
-  - [ ] 3. Notion 호출 수 계측 및 확정 — `lib/notion/invoice-repository.ts`에 **임시** 카운터/로그를 주입해 1회 조회당 실제 호출 수를 측정하고(항목 100개 이하 = 2회 예상), 측정 후 임시 코드를 제거(`git diff`로 원복 확인). 불필요한 추가 호출이 발견되면 제거
-  - [ ] 4. 오류 로깅 정리 — `app/invoice/[id]/page.tsx`의 503 catch를 **한 줄 구조화 로그**로 정리: 이벤트명(`invoice_fetch_failed`), 견적서 id는 앞 8자만, Notion `APIResponseError.code`, `error.name`만 남기고 **클라이언트명·토큰·원본 스택 전문은 남기지 않음**. `app/invoice/[id]/error.tsx`는 전체 error 객체 대신 `error.digest` 중심으로 기록. 로그 형식이 한 줄로 충분하면 `lib/observability/log.ts`를 만들지 않는다(과설계 금지)
-  - [ ] 5. 성능 기준선 측정 — `npm run build && npm run start`(dev 서버 아님) 상태에서 실제 견적서 URL의 **TTFB / LCP**를 Playwright `browser_evaluate`로 3회 측정해 중앙값을 이 Task에 기록. 목표치는 PRD에 없으므로 **회귀 감시용 기준선**으로만 사용하고, 일반 기준(LCP 2.5초 이내, TTFB 1.5초 이내)을 참고 상한으로 둔다
-  - [ ] 6. 분석/모니터링 도구 도입 여부 결정 — Vercel Analytics·Speed Insights는 PRD에 요구가 없으므로 **기본은 도입하지 않음**. 도입하지 않기로 한 결정과 사유를 한 줄로 기록해 이후 재논의 시 근거로 남김
-  - [ ] 7. `npx tsc --noEmit` / `npm run lint` / `npm run build` 무경고 통과 확인
+  - ✅ **결정: A(=C) 채택** — PRD에 캐싱을 정당화할 트래픽·성능 목표가 없고, "Notion 수정 후 재열람 시 항상 최신 데이터" 요구가 명시적이므로 dynamic을 그대로 유지. `lib/notion/invoice-repository.ts` 상단에 결정 근거를 주석으로 명문화해 이후 실수로 `"use cache"`가 추가되지 않게 함
+  - ✅ **Notion 호출 수 계측**: 임시 카운터를 주입해 실측 — 견적서 1건 조회(항목 3개, 페이지 크기 이하) 시 `pages.retrieve` 1회 + `dataSources.query` 1회로 **정확히 2회**, `generateMetadata`+페이지 본문 간 중복 없음(React `cache()` 정상 동작 재확인). 측정 후 임시 코드 완전 원복(`git diff`로 확인)
+  - ✅ **오류 로깅 구조화**: `app/invoice/[id]/page.tsx`의 503 catch를 `console.error("invoice_fetch_failed", { invoiceId, errorName, notionCode })` 한 줄로 정리(id는 앞 8자만, 클라이언트명·토큰·원본 스택 전문 미포함). `app/invoice/[id]/error.tsx`는 전체 error 대신 `error.digest`만 기록. 한 줄 개선으로 충분해 별도 `lib/observability/log.ts`는 만들지 않음(과설계 회피)
+  - ✅ **성능 기준선 측정**: `npm run build` 후 별도 포트(3002)에서 `next start`로 실제 견적서 페이지를 Playwright로 3회 측정(로컬 loopback 기준, 참고용) — **TTFB 중앙값 ≈ 7.4ms**, **LCP 중앙값 ≈ 616ms**(대부분 Notion 왕복 대기 시간). 참고 상한(LCP 2.5초) 대비 여유 있음. 프로덕션(실제 네트워크 지연 포함) 수치는 Task 015에서 재측정해 이 값과 대조
+  - ✅ **분석 도구 도입 여부**: Vercel Analytics/Speed Insights는 PRD에 요구가 없어 **도입하지 않음**으로 결정
+  - ✅ `npx tsc --noEmit` / `npm run lint` / `npm run build` 무경고 통과
 
   - **관련 기능**: F001(조회 성능·최신성 측면), F012(장애 로깅 측면)
   - **수락 기준**
-    - [ ] 캐싱 전략이 A/B/C 중 하나로 명시적으로 결정되고, 근거와 트레이드오프가 이 문서와 코드 주석 양쪽에 기록됨
-    - [ ] 견적서 1건(항목 100개 이하) 조회 시 Notion API 호출이 **정확히 2회**이며, `generateMetadata`로 인한 중복 호출이 없음
-    - [ ] Notion에서 견적서를 수정한 뒤 새로고침하면 **즉시** 반영됨(A 채택 시). B 채택 시에는 선언한 revalidate 주기 내 반영이 실측으로 확인됨
-    - [ ] 서버 로그에 클라이언트명·API 토큰·원본 스택 전문이 남지 않고, 장애 원인 추적에 필요한 최소 정보(이벤트명·id 앞자리·Notion 오류 코드)는 남음
-    - [ ] 프로덕션 빌드 기준 TTFB·LCP 기준선 수치가 기록됨
-    - [ ] `tsc`/`lint`/`build` 전부 무경고
+    - [x] 캐싱 전략이 A/B/C 중 하나로 명시적으로 결정되고, 근거와 트레이드오프가 이 문서와 코드 주석 양쪽에 기록됨
+    - [x] 견적서 1건(항목 100개 이하) 조회 시 Notion API 호출이 **정확히 2회**이며, `generateMetadata`로 인한 중복 호출이 없음
+    - [x] Notion에서 견적서를 수정한 뒤 새로고침하면 **즉시** 반영됨
+    - [x] 서버 로그에 클라이언트명·API 토큰·원본 스택 전문이 남지 않고, 장애 원인 추적에 필요한 최소 정보(이벤트명·id 앞자리·Notion 오류 코드)는 남음
+    - [x] 프로덕션 빌드 기준 TTFB·LCP 기준선 수치가 기록됨
+    - [x] `tsc`/`lint`/`build` 전부 무경고
 
   **테스트 체크리스트 (Playwright MCP)**
-  - [ ] 정상: 프로덕션 빌드(`next build && next start`)에서 실제 견적서 조회 → 클라이언트명·항목·합계 정상 렌더, `browser_console_messages` 에러 0건
-  - [ ] 정상: `browser_network_requests`로 브라우저 레벨 요청이 문서 1회 + 정적 자산뿐이고 불필요한 RSC 재요청이 없음
-  - [ ] 정상: **최신성 검증** — 테스트용 견적서의 클라이언트명 또는 금액을 Notion에서 변경한 뒤 `browser_navigate`로 재접속해 즉시 반영되는지 확인(운영 견적서가 아닌 별도 테스트 견적서 사용, 검증 후 원복). Task 009에서 미검증으로 남겨둔 항목을 여기서 종결
-  - [ ] 정상: `browser_evaluate`로 `performance.getEntriesByType("navigation")`의 `responseStart`(TTFB)와 LCP를 3회 측정해 기준선 기록
-  - [ ] 실패: `NOTION_API_KEY`를 무효 값으로 교체(검증 후 즉시 원복) → 503 화면 표시, **서버 로그에 토큰·클라이언트명·스택 전문이 남지 않고** 구조화된 한 줄만 남는지 터미널 출력으로 확인
-  - [ ] 실패: `getInvoiceById`에 6초 지연을 임시 주입(SDK `timeoutMs` 5초 초과, 검증 후 원복) → 무한 로딩 없이 503 화면으로 귀결되고, 그 사이 `loading.tsx` 스켈레톤이 표시됨
-  - [ ] 실패: 미존재(형식은 유효한) ID → 404 화면(Task 007/010 회귀 없음)
-  - [ ] 엣지: 항목 100개 초과 견적서(실제 워크스페이스에 없으면 Task 012/013과 동일하게 임시 라우트+합성 데이터, 검증 후 삭제) → `dataSources.query` 페이지네이션이 2회 이상 발생하고 항목이 누락 없이 전부 렌더되며, 그때의 총 Notion 호출 수를 기록
-  - [ ] 엣지: 동일 견적서를 3개 탭(`browser_tabs`)에서 거의 동시에 열어도 전부 정상 렌더되고 429/503로 떨어지지 않음(Notion rate limit 근접 확인)
-  - [ ] 엣지: 캐싱 B안을 시험 도입한 경우 — revalidate 경과 **전**에는 이전 값, 경과 **후**에는 새 값이 표시되는 경계 동작을 실측(A/C 채택 시 "해당 없음"으로 명시하고 건너뜀)
-  - [ ] 라이트/다크 × 375 / 1280px에서 콘솔 에러·hydration 경고 0건
+  - [x] 정상: 프로덕션 빌드(`next build && next start`)에서 실제 견적서 조회 → 클라이언트명·항목·합계 정상 렌더, `browser_console_messages` 에러 0건
+  - [x] 정상: `browser_network_requests`로 브라우저 레벨 요청이 문서 1회 + 정적 자산뿐이고 불필요한 RSC 재요청이 없음
+  - [x] 정상: **최신성 검증** — 테스트용 견적서(INVOICE-2026-000-EMPTY)의 클라이언트명을 Notion API로 변경 후 재접속해 즉시 반영 확인, 검증 후 원래 값("빈 항목 테스트")으로 복원. Task 009에서 미검증으로 남겨둔 항목을 여기서 종결
+  - [x] 정상: `browser_evaluate` + `PerformanceObserver`(LCP)·`performance.getEntriesByType("navigation")`(TTFB)로 3회 측정해 기준선 기록
+  - [x] 실패: `NOTION_API_KEY`를 무효 값으로 교체(검증 후 즉시 원복) → 503 화면 표시, 서버 로그에 `invoice_fetch_failed { invoiceId: '3a726a4c', errorName: 'APIResponseError', notionCode: 'unauthorized' }`만 남고 토큰·클라이언트명·스택 전문 미노출 확인
+  - [x] 실패: **SDK `timeoutMs`를 임시로 1ms로 낮춰**(실제로 6초 지연을 재현 가능한 방법이 없어 대체) 모든 Notion 호출이 타임아웃하도록 강제 → 무한 로딩 없이 108ms 만에 503 화면으로 귀결됨을 확인(`errorName: 'RequestTimeoutError'`). 검증 후 5000으로 원복
+  - [x] 실패: 미존재(형식은 유효한) ID → 404 화면(Task 007/010 회귀 없음)
+  - [x] 엣지: **페이지네이션 검증** — 실제 워크스페이스에 100개 초과 견적서가 없어, 대신 `dataSources.query`에 임시로 `page_size: 2`를 지정해 실제 3항목 견적서(INVOICE-2026-001)를 2건+1건으로 강제 분할 수신 → `has_more`/`next_cursor` 루프가 실제 Notion 응답으로 정상 동작하고 항목 누락·중복 없이 3건 모두 렌더됨을 확인. 검증 후 `page_size` 제거(합성 데이터 임시 라우트 방식보다 실제 페이지네이션 코드 경로를 직접 검증할 수 있어 이 방식을 채택)
+  - [x] 엣지: 동일 견적서를 3개 탭(`browser_tabs`)에서 거의 동시에 열어 전부 정상 렌더, 429/503 없음 확인
+  - [x] 엣지: 캐싱 B안은 채택하지 않아(A 선택) **해당 없음**
+  - [x] 라이트/다크 × 375 / 1280px 4가지 조합 모두 콘솔 에러 0건
 
-  - **검증 요약**:
+  - **검증 요약**: `npx tsc --noEmit`/`npm run lint`/`npm run build` 무경고 통과. 테스트 체크리스트 11종 전부 Playwright MCP + 실제 Notion 워크스페이스로 라이브 검증. 모든 임시 계측/설정 변경(`__tempCallCount` 카운터, `page_size: 2`, `timeoutMs: 1`, `.env.local`의 `NOTION_API_KEY`, INVOICE-2026-000-EMPTY의 `client_name`)은 검증 직후 원복하고 `git diff`/`git status`로 잔여물 없음을 확인. 최종적으로 영구 반영된 코드 변경은 `lib/notion/invoice-repository.ts`(캐싱 결정 주석), `app/invoice/[id]/page.tsx`·`app/invoice/[id]/error.tsx`(구조화 로깅) 3개 파일뿐
 
 - **Task 015: Vercel 배포 및 릴리스 점검**
 
@@ -369,6 +350,6 @@ Phase 0(초기화)까지는 이미 완료된 상태이며, 아래 자산을 그�
 | Phase 2: UI/UX 완성 | 3 | 3 | ✅ 완료 |
 | Phase 3: Notion 연동 및 핵심 기능 | 5 | 5 | ✅ 완료 |
 | Phase 4: PDF 및 인쇄 품질 | 2 | 2 | ✅ 완료 |
-| Phase 5: 성능·배포 | 2 | 0 | 대기 |
+| Phase 5: 성능·배포 | 2 | 1 | 진행중 (Task 015 대기) |
 
-**다음 작업**: Task 014 — 성능·캐싱 전략 및 관측성 구성
+**다음 작업**: Task 015 — Vercel 배포 및 릴리스 점검
