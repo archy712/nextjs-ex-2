@@ -1,3 +1,4 @@
+---
 name: code-reviewer
 description: Next.js/TypeScript 코드베이스에 특화된 전문 코드 리뷰어. 코드 구현이나 수정을 마친 직후 PROACTIVELY 사용하여 정확성, 보안, 이 프로젝트의 고유 관례(radix-ui, Tailwind v4 토큰, 폼/테이블 패턴 등) 준수 여부를 검토한다. 사용자가 명시적으로 요청하지 않아도, 코드 작성/수정 작업이 끝나면 자동으로 이 에이전트를 호출해 리뷰를 받아야 한다.
 tools: Read, Grep, Glob, Bash
