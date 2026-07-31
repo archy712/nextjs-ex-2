@@ -24,11 +24,11 @@ Notion에 입력된 견적서를 클라이언트가 로그인 없이 링크만�
 |---|---|---|---|
 | **F001** | Notion 데이터 조회 | Task 003(클라이언트 설정) ✅, Task 008(조회 계층) ✅, Task 009(페이지 연결) ✅ | 완료 |
 | **F002** | 견적서 내용 표시 | Task 004(UI) ✅, Task 006(반응형 표현) ✅, Task 009(실데이터 연결) ✅ | 완료 |
-| **F003** | PDF 다운로드(인쇄) | Task 004(버튼 UI) ✅, Task 012(인쇄 구현) ✅, Task 013(인쇄 품질 검증) | 진행중 |
+| **F003** | PDF 다운로드(인쇄) | Task 004(버튼 UI) ✅, Task 012(인쇄 구현) ✅, Task 013(인쇄 품질 검증) ✅ | 완료 |
 | **F010** | 견적서 ID 형식 검증 | Task 002(Zod 스키마) ✅, Task 007(검증 로직·조기 차단) ✅ | 완료 |
 | **F011** | 존재하지 않는 견적서 안내(404) | Task 005(오류 UI) ✅, Task 010(분기 처리) ✅ | 완료 |
 | **F012** | 서비스 장애 안내(503) | Task 005(오류 UI) ✅, Task 010(분기 처리) ✅ | 완료 |
-| **F013** | 반응형 레이아웃 | Task 001(레이아웃 골격) ✅, Task 006(반응형 완성) ✅, Task 013(다기기 회귀 검증) | 진행중 |
+| **F013** | 반응형 레이아웃 | Task 001(레이아웃 골격) ✅, Task 006(반응형 완성) ✅, Task 013(다기기 회귀 검증) ✅ | 완료 |
 | **전체 플로우** | 통합 검증 | Task 011(핵심 플로우 통합 테스트) ✅, Task 015(프로덕션 스모크) | 진행중 |
 
 > Task를 완료(✅)로 표시할 때 이 표의 상태도 함께 갱신합니다.
@@ -118,7 +118,7 @@ Phase 0(초기화)까지는 이미 완료된 상태이며, 아래 자산을 그�
   - **관련 기능**: F001
   - **검증 요약**: 실제 Notion 워크스페이스 대상 라이브 검증으로 4가지 실제 불일치를 발견·수정 — 환경변수 파일 위치, `NOTION_ITEMS_DATA_SOURCE_ID` 값(데이터베이스 ID가 아닌 데이터소스 ID로 정정), `total_amount` 속성 타입(Number → Rollup(Sum)), Items의 `invoice` relation 속성명(대소문자/단복수 정정). 최종적으로 실제 견적서 1건과 항목 3건 모두 `notionInvoicePageSchema`/`notionItemPageSchema` 검증 통과
 
-### Phase 2: UI/UX 완성 (더미 데이터 활용)
+### Phase 2: UI/UX 완성 (더미 데이터 활용) ✅
 
 - **Task 004: 견적서 조회 화면 UI 구현 (더미 데이터)** ✅ - 완료
   - ✅ `components/invoice/invoice-header.tsx` — 견적서 번호, 클라이언트명, 유효기간 표시(발행일 필드는 도메인 타입에 없어 제외), 유효기간 경과 시 `Badge`로 만료 표시. 만료 판정(`Date.now()`)은 `lib/invoice/status.ts`의 `isInvoiceExpired` 순수 함수로 분리(React Compiler `react-hooks/purity` 규칙 대응)
@@ -215,7 +215,7 @@ Phase 0(초기화)까지는 이미 완료된 상태이며, 아래 자산을 그�
   - [x] 엣지: 느린 네트워크에서 로딩 스켈레톤이 표시된 후 정상 전환
   - [x] 모든 뷰포트에서 콘솔 에러 0건
 
-### Phase 4: PDF 다운로드 및 인쇄 품질
+### Phase 4: PDF 다운로드 및 인쇄 품질 ✅
 
 - **Task 012: PDF 다운로드 및 인쇄 전용 스타일 구현 (F003)** ✅ - 완료
   - ✅ `components/invoice/download-button.tsx`를 `'use client'`로 전환, `onClick={() => window.print()}` 연결
@@ -237,36 +237,114 @@ Phase 0(초기화)까지는 이미 완료된 상태이며, 아래 자산을 그�
   - [x] 엣지: 375px 모바일 뷰포트에서 버튼 클릭 → `window.print` 호출 1회 확인
   - [x] `browser_console_messages`에 에러 없음(정상 플로우 전 구간 기준)
 
-- **Task 013: 인쇄·반응형 회귀 검증**
-  - 375 / 768 / 1280 / 1920px 화면 스크린샷 확보 및 시각 회귀 확인
-  - 인쇄 미디어 상태 스크린샷을 항목 수(0 / 3 / 30 / 50개)별로 확보
-  - 라이트·다크 × 화면·인쇄 조합 매트릭스 점검
-  - 접근성 점검: 표 헤더 연결, 버튼 접근 가능 이름, 오류 메시지 `aria-live`, 키보드 포커스 순서
+- **Task 013: 인쇄·반응형 회귀 검증** ✅ - 완료
+  - ✅ 375 / 768 / 1280 / 1920px 화면 스크린샷 확보 및 시각 회귀 확인(실제 Notion 워크스페이스 견적서 INVOICE-2026-001 기준) — 768px 경계에서 표 레이아웃 전환, 1920px에서 `max-w-3xl` 중앙 정렬 유지, 레이아웃 깨짐 없음
+  - ✅ 인쇄 미디어 스크린샷을 항목 수(0 / 3 / 30 / 50개)별로 확보 — 실제 워크스페이스에는 해당 항목 수 데이터가 없어 Task012와 동일하게 임시 라우트(`app/print-test-temp/[count]`, 검증 후 삭제)로 합성 데이터 사용. 30개는 2페이지, 50개는 3페이지로 정상 분할, 매 페이지 헤더 반복·행 절단 없음(`page.pdf()`로 실제 PDF 생성해 확인)
+  - ✅ 라이트·다크 × 화면·인쇄 조합 매트릭스 점검 완료
+  - ✅ 접근성 점검: `columnheader` 역할로 표 헤더 연결 확인, "PDF 다운로드"/"다시 시도" 버튼 접근 가능한 이름 확인, 오류 화면 `role="alert"`(암묵적 assertive, 별도 `aria-live` 없음) 유지 확인, 키보드 탭 이동으로 페이지 내 유일한 인터랙티브 요소(다운로드 버튼) 및 503 화면의 "다시 시도" 버튼 포커스 도달·Enter로 활성화("재시도 중..." 상태 전환까지) 확인
+  - ⚠️ **라이브 검증 중 발견한 실제 버그와 수정**: 다크 모드에서 실제 `page.pdf()`로 다중 페이지 PDF를 생성하면(화면 스크린샷이 아닌 진짜 인쇄 결과물), 콘텐츠가 그려지지 않은 영역(페이지 여백, 마지막 페이지의 남은 공간)이 검정으로 렌더링되는 문제를 두 개의 독립 렌더러(Read 도구의 PDF 변환기, macOS Quick Look)로 재현 확인. 원인은 `next-themes`가 스크롤바/폼 컨트롤 정상 렌더링을 위해 다크 모드에서 `html.style.colorScheme = "dark"`를 인라인으로 설정하는데, 기존 `@media print` 오버라이드가 `--background` 등 CSS 커스텀 프로퍼티만 라이트로 강제하고 `color-scheme`는 그대로 두어, 실제로 그려진 요소 밖의 브라우저 기본 캔버스 배경이 다크 스킴을 따라 검정으로 채워졌기 때문. `app/globals.css`의 `@media print` 블록에 `html { color-scheme: light !important; }`를 추가해 수정, 다크 모드 0/3/50개 항목 PDF 및 실제 견적서 PDF 모두 흰 배경으로 재검증 통과
   - **관련 기능**: F003, F013, F002
-  - **수락 기준**: 모든 조합에서 레이아웃 깨짐 없음, 접근성 트리에 이름 없는 인터랙티브 요소 없음
+  - **검증 요약**: `npx tsc --noEmit`/`npm run lint`/`npm run build` 무경고 통과. 임시 라우트(`app/print-test-temp/[count]`)와 캡처 산출물(`.playwright-mcp/task013/*`)은 검증 후 전부 삭제, `git status`로 `app/globals.css` 변경 외 잔여물 없음 확인. 503 재현을 위해 `.env.local`의 `NOTION_API_KEY`를 임시 무효값으로 교체하며 dev 서버를 재시작했고, 검증 직후 원래 키로 복구 후 재시작해 정상 상태로 되돌림(`diff`로 원본과 동일함 확인)
 
 ### Phase 5: 성능 최적화 및 배포
 
-- **Task 014: 성능·캐싱 전략 및 관측성 구성**
-  - `cacheComponents: true` 환경에서의 렌더 전략 확정: 조회 경로는 dynamic 유지 vs `use cache` + `cacheLife`(짧은 주기) + `cacheTag` 도입 — 트레이드오프(최신성 vs Notion 호출량)를 문서화하고 결정
-  - Notion 호출 최소화: 견적서/항목 조회 병렬화, 필요한 속성만 사용, 중복 호출 제거
-  - 오류 로깅 정리: 서버 측 오류 digest 기록, 민감 정보 마스킹, 필요 시 Vercel Analytics 도입 검토
-  - `npm run build`/`npm run lint` 무경고 유지, 조회 페이지 TTFB·LCP 목표치 설정 및 측정
-  - **관련 기능**: F001 성능 측면
-  - **수락 기준**: 견적서 1건 조회 시 Notion 요청 수가 예상 범위 내이고, 목표 성능 수치를 충족
+> **PRD 상의 비기능 요구사항(NFR) 확인 결과**: `docs/PRD.md`에는 응답 시간·처리량·가용성 목표나 분석·모니터링 도구 도입 요구가 **명시되어 있지 않습니다**. 따라서 Phase 5는 "PRD에 없는 기능을 새로 만드는 단계"가 아니라, **① PRD 사용자 여정에 이미 적힌 동작 보장 ② 기준선 측정·기록 ③ 배포**만 다룹니다. 특히 발행자 여정 4단계의 *"이후 Notion에서 내용을 수정하면, 클라이언트가 다시 열람할 때 **항상 최신 데이터**로 표시됨"* 이 Phase 5에서 지켜야 할 유일한 명시적 품질 요구사항이며, 캐싱 전략 결정을 직접 구속합니다. 성능 대시보드, APM, 외부 로깅 SaaS, 알림 연동 등은 PRD 범위 밖이므로 도입하지 않습니다.
 
-- **Task 015: Vercel 배포 및 릴리스 점검**
-  - Vercel 프로젝트 생성 및 Production/Preview 환경변수 등록(`NOTION_API_KEY`, `NOTION_ITEMS_DATA_SOURCE_ID`) — 서버 전용 변수임을 재확인
-  - 프로덕션 도메인 확정 후 Notion Invoices DB의 URL Formula 속성을 실제 도메인으로 갱신
-  - 프로덕션 스모크 테스트: 실제 견적서 링크로 조회 → PDF 저장 → 404/503 경로까지 Playwright MCP로 재확인
-  - `README.md`/`CLAUDE.md`에 Notion 설정 절차·환경변수·운영 주의사항 문서화
-  - 릴리스 태그 생성 및 로드맵 최종 상태 갱신
+- **Task 014: 성능·캐싱 전략 및 관측성 구성** - 우선순위
+
+  **관련 파일**
+  - `app/invoice/[id]/page.tsx` — `getValidatedInvoice`(React `cache()`), 503 catch 블록의 `console.error` 한 줄
+  - `app/invoice/[id]/error.tsx` — `console.error(error)` (digest 기록 형태로 정리 대상)
+  - `lib/notion/invoice-repository.ts` — `getInvoiceById`(`Promise.allSettled` 병렬 + `queryAllInvoiceItems` 페이지네이션)
+  - `lib/notion/client.ts` — SDK `timeoutMs: 5000`, `retry: { maxRetries: 1 }`
+  - `next.config.ts` — `cacheComponents: true`
+  - (신규 가능) `lib/observability/log.ts` — 구조화 로그 헬퍼. **단계 3에서 "한 줄 개선으로 충분"하다고 판단되면 파일을 만들지 않는다**
+  - `docs/ROADMAP.md` — 캐싱 전략 결정 기록
+
+  **현재 상태(재조사 불필요)**
+  - 견적서 1건 조회 = `pages.retrieve` 1회 + `dataSources.query` 1회(항목 100개 이하 기준)로 **총 2회**, 두 호출은 이미 병렬(`Promise.allSettled`)
+  - `generateMetadata`와 페이지 본문의 중복 호출은 React `cache()`로 이미 제거됨(Task 009)
+  - 코드베이스 어디에도 `"use cache"`/`cacheLife`/`cacheTag`가 없어 조회 경로는 **의도적으로 dynamic** 유지 중(Task 008)
+  - 관측성은 `console.error("[invoice] Notion 조회 실패:", error)` 한 줄이 전부
+
+  **캐싱 전략 선택지 (단계 1에서 하나를 선택하고 근거를 이 문서에 기록)**
+
+  | 선택지 | 내용 | 장점 | 단점/리스크 |
+  |---|---|---|---|
+  | **A. dynamic 유지 (현행)** | `"use cache"` 미사용. 요청마다 Notion 2회 호출, PPR 셸 + `loading.tsx`로 체감 지연 완화 | PRD의 "항상 최신 데이터" 요구를 **무조건** 충족. 만료 뱃지(`isInvoiceExpired`)·금액 수정이 즉시 반영. 추가 코드 0 | 조회 1건마다 Notion 왕복이 TTFB에 그대로 반영. 동일 링크가 단시간에 대량 열람되면 Notion rate limit(통합당 평균 약 3 req/s) 접근 가능 |
+  | **B. `use cache` + `cacheLife` + `cacheTag`** | `getInvoiceById`(또는 페이지 데이터 함수)에 `"use cache"` 적용, `cacheLife`로 짧은 주기(예: revalidate 60초) 지정, `cacheTag("invoice-<id>")` 부여 | 반복 조회 시 Notion 호출 급감, TTFB 안정화 | **최신성이 revalidate 주기만큼 지연 → PRD 여정 4단계와 정면 충돌**. Notion → 앱 방향 webhook이 MVP 범위 밖이라 `revalidateTag` 무효화 트리거가 없어 태그가 사실상 사용되지 않음. 만료된 견적서를 유효한 것처럼 잠시 보여줄 수 있음 |
+  | **C. 절충: 셸만 정적 + 데이터 dynamic** | 현재 PPR 동작 그대로(레이아웃/스켈레톤은 프리렌더, 데이터는 dynamic) | A와 동일한 최신성 + 셸 즉시 응답 | 실질적으로 A와 동일 — 별도 작업이 아니라 **A의 정확한 서술** |
+
+  > **권고**: PRD에 캐싱을 정당화할 트래픽·성능 목표가 없고, 최신성은 PRD에 명시된 요구사항이므로 **A(=C) 유지**를 기본안으로 한다. B는 단계 5의 측정 결과가 명백히 문제(예: TTFB가 기준선을 크게 초과)일 때만 재검토하고, 채택 시 반드시 "최신성 지연 허용" 결정을 PRD 소유자와 확인한 뒤 이 문서에 기록한다.
+
+  **구현 단계**
+  - [ ] 1. 캐싱 전략 결정 — 위 표의 A/B/C 중 하나를 선택하고, 선택 근거와 포기한 이점을 이 Task의 본문에 기록. B를 선택하는 경우 `node_modules/next/dist/docs/`에서 현재 Next.js 16.2.12의 `cacheLife`/`cacheTag` 정확한 import 경로·시그니처·안정성 표기를 **먼저 확인**(AGENTS.md 규칙)
+  - [ ] 2. 결정 사항을 코드에 명문화 — A 유지 시 `lib/notion/invoice-repository.ts` 또는 `app/invoice/[id]/page.tsx` 상단에 "의도적으로 캐시하지 않음(사유: PRD 최신성 요구)" 주석을 남겨 이후 작업자가 실수로 `"use cache"`를 추가하지 않게 함
+  - [ ] 3. Notion 호출 수 계측 및 확정 — `lib/notion/invoice-repository.ts`에 **임시** 카운터/로그를 주입해 1회 조회당 실제 호출 수를 측정하고(항목 100개 이하 = 2회 예상), 측정 후 임시 코드를 제거(`git diff`로 원복 확인). 불필요한 추가 호출이 발견되면 제거
+  - [ ] 4. 오류 로깅 정리 — `app/invoice/[id]/page.tsx`의 503 catch를 **한 줄 구조화 로그**로 정리: 이벤트명(`invoice_fetch_failed`), 견적서 id는 앞 8자만, Notion `APIResponseError.code`, `error.name`만 남기고 **클라이언트명·토큰·원본 스택 전문은 남기지 않음**. `app/invoice/[id]/error.tsx`는 전체 error 객체 대신 `error.digest` 중심으로 기록. 로그 형식이 한 줄로 충분하면 `lib/observability/log.ts`를 만들지 않는다(과설계 금지)
+  - [ ] 5. 성능 기준선 측정 — `npm run build && npm run start`(dev 서버 아님) 상태에서 실제 견적서 URL의 **TTFB / LCP**를 Playwright `browser_evaluate`로 3회 측정해 중앙값을 이 Task에 기록. 목표치는 PRD에 없으므로 **회귀 감시용 기준선**으로만 사용하고, 일반 기준(LCP 2.5초 이내, TTFB 1.5초 이내)을 참고 상한으로 둔다
+  - [ ] 6. 분석/모니터링 도구 도입 여부 결정 — Vercel Analytics·Speed Insights는 PRD에 요구가 없으므로 **기본은 도입하지 않음**. 도입하지 않기로 한 결정과 사유를 한 줄로 기록해 이후 재논의 시 근거로 남김
+  - [ ] 7. `npx tsc --noEmit` / `npm run lint` / `npm run build` 무경고 통과 확인
+
+  - **관련 기능**: F001(조회 성능·최신성 측면), F012(장애 로깅 측면)
+  - **수락 기준**
+    - [ ] 캐싱 전략이 A/B/C 중 하나로 명시적으로 결정되고, 근거와 트레이드오프가 이 문서와 코드 주석 양쪽에 기록됨
+    - [ ] 견적서 1건(항목 100개 이하) 조회 시 Notion API 호출이 **정확히 2회**이며, `generateMetadata`로 인한 중복 호출이 없음
+    - [ ] Notion에서 견적서를 수정한 뒤 새로고침하면 **즉시** 반영됨(A 채택 시). B 채택 시에는 선언한 revalidate 주기 내 반영이 실측으로 확인됨
+    - [ ] 서버 로그에 클라이언트명·API 토큰·원본 스택 전문이 남지 않고, 장애 원인 추적에 필요한 최소 정보(이벤트명·id 앞자리·Notion 오류 코드)는 남음
+    - [ ] 프로덕션 빌드 기준 TTFB·LCP 기준선 수치가 기록됨
+    - [ ] `tsc`/`lint`/`build` 전부 무경고
 
   **테스트 체크리스트 (Playwright MCP)**
-  - [ ] 정상: 프로덕션 URL에서 실제 견적서 조회 및 PDF 저장 플로우 성공
+  - [ ] 정상: 프로덕션 빌드(`next build && next start`)에서 실제 견적서 조회 → 클라이언트명·항목·합계 정상 렌더, `browser_console_messages` 에러 0건
+  - [ ] 정상: `browser_network_requests`로 브라우저 레벨 요청이 문서 1회 + 정적 자산뿐이고 불필요한 RSC 재요청이 없음
+  - [ ] 정상: **최신성 검증** — 테스트용 견적서의 클라이언트명 또는 금액을 Notion에서 변경한 뒤 `browser_navigate`로 재접속해 즉시 반영되는지 확인(운영 견적서가 아닌 별도 테스트 견적서 사용, 검증 후 원복). Task 009에서 미검증으로 남겨둔 항목을 여기서 종결
+  - [ ] 정상: `browser_evaluate`로 `performance.getEntriesByType("navigation")`의 `responseStart`(TTFB)와 LCP를 3회 측정해 기준선 기록
+  - [ ] 실패: `NOTION_API_KEY`를 무효 값으로 교체(검증 후 즉시 원복) → 503 화면 표시, **서버 로그에 토큰·클라이언트명·스택 전문이 남지 않고** 구조화된 한 줄만 남는지 터미널 출력으로 확인
+  - [ ] 실패: `getInvoiceById`에 6초 지연을 임시 주입(SDK `timeoutMs` 5초 초과, 검증 후 원복) → 무한 로딩 없이 503 화면으로 귀결되고, 그 사이 `loading.tsx` 스켈레톤이 표시됨
+  - [ ] 실패: 미존재(형식은 유효한) ID → 404 화면(Task 007/010 회귀 없음)
+  - [ ] 엣지: 항목 100개 초과 견적서(실제 워크스페이스에 없으면 Task 012/013과 동일하게 임시 라우트+합성 데이터, 검증 후 삭제) → `dataSources.query` 페이지네이션이 2회 이상 발생하고 항목이 누락 없이 전부 렌더되며, 그때의 총 Notion 호출 수를 기록
+  - [ ] 엣지: 동일 견적서를 3개 탭(`browser_tabs`)에서 거의 동시에 열어도 전부 정상 렌더되고 429/503로 떨어지지 않음(Notion rate limit 근접 확인)
+  - [ ] 엣지: 캐싱 B안을 시험 도입한 경우 — revalidate 경과 **전**에는 이전 값, 경과 **후**에는 새 값이 표시되는 경계 동작을 실측(A/C 채택 시 "해당 없음"으로 명시하고 건너뜀)
+  - [ ] 라이트/다크 × 375 / 1280px에서 콘솔 에러·hydration 경고 0건
+
+  - **검증 요약**:
+
+- **Task 015: Vercel 배포 및 릴리스 점검**
+
+  **관련 파일**
+  - `.env.example` — Vercel 환경변수 등록 시 기준이 되는 키 목록(`NOTION_API_KEY`, `NOTION_ITEMS_DATA_SOURCE_ID`)
+  - `lib/notion/env.ts` — 환경변수 누락 시 즉시 실패하는 Zod 검증(배포 환경에서도 동일하게 동작하는지 확인 지점)
+  - `README.md` — **현재 내용이 실제 구현과 어긋나 있어 갱신 필수**(아래 구현 단계 4 참조)
+  - `CLAUDE.md` — Notion 설정 절차·운영 주의사항 반영
+  - `docs/ROADMAP.md` — 최종 상태 갱신
+  - (신규 가능) `vercel.json` — 기본 설정으로 충분하면 만들지 않는다
+
+  **구현 단계**
+  - [ ] 1. Vercel 프로젝트 생성 및 연결 — GitHub 저장소 연결, Framework Preset이 Next.js로 잡히는지 확인, 빌드 커맨드/Node 버전 기본값 확인
+  - [ ] 2. 환경변수 등록 — Production·Preview 양쪽에 `NOTION_API_KEY`, `NOTION_ITEMS_DATA_SOURCE_ID` 등록. **`NEXT_PUBLIC_` 접두사를 쓰지 않아 서버 전용임을 재확인**하고, 값이 클라이언트 번들에 포함되지 않는지 배포 후 실제 HTML/JS로 검증(단계 5)
+  - [ ] 3. 프로덕션 도메인 확정 후 Notion Invoices DB의 URL Formula 속성을 실제 도메인으로 갱신 — 갱신 후 Notion에서 복사한 링크가 그대로 열리는지 확인
+  - [ ] 4. 문서 갱신 — `README.md`의 현재 기술 스택/기능 서술이 실제 구현과 불일치하므로 **반드시 정정**: ① PDF 생성이 `@react-pdf/renderer` 서버 사이드가 아니라 `window.print()` + `@media print`임 ② `use cache` 캐싱·"Notion rate limit 대응 캐싱"은 실제로 도입되지 않았음(Task 014 결정 사항 반영) ③ "PDF 다운로드 라우트"는 존재하지 않음 ④ 개발 상태 체크리스트를 현재 Phase에 맞게 갱신. 아울러 Notion 워크스페이스 준비 절차(통합 생성 → Invoices/Items DB 공유 → data source ID 확인)와 운영 주의사항(속성 이름 변경 시 `lib/notion/property-names.ts` 동기화 필요)을 명시
+  - [ ] 5. 프로덕션 스모크 테스트 수행 — 아래 테스트 체크리스트 전부 통과
+  - [ ] 6. 릴리스 태그 생성(`v1.0.0`) 및 로드맵 최종 상태 갱신 — 추적 매트릭스의 "전체 플로우" 상태와 진행 상황 요약 표 동기화
+
+  - **관련 기능**: 전체(F001~F013) 프로덕션 검증
+  - **수락 기준**
+    - [ ] Production 배포가 성공하고, 실제 도메인의 견적서 링크로 조회·PDF 저장이 동작함
+    - [ ] Notion Formula가 생성하는 링크가 수정 없이 그대로 열림
+    - [ ] 프로덕션 응답·번들 어디에도 Notion 토큰이 노출되지 않음
+    - [ ] `README.md`/`CLAUDE.md`가 실제 구현과 일치함(특히 PDF 생성 방식과 캐싱 전략)
+    - [ ] 릴리스 태그가 생성되고 로드맵 전 Phase가 ✅로 마감됨
+
+  **테스트 체크리스트 (Playwright MCP)**
+  - [ ] 정상: 프로덕션 URL에서 실제 견적서 조회 및 PDF 저장 플로우 성공(`window.print` 스텁으로 호출 1회 확인 + 인쇄 미디어 스크린샷)
   - [ ] 실패: 프로덕션에서 미존재 ID → 404, Notion 장애 시나리오 → 503 안내
   - [ ] 엣지: 모바일 실제 뷰포트에서 조회·인쇄 정상
   - [ ] 프로덕션 응답 헤더·HTML에 환경변수·토큰 노출 없음
+  - [ ] 엣지: Preview 배포(별도 환경변수 세트)에서도 동일 플로우가 동작해 환경변수 등록 누락이 없음을 확인
+  - [ ] 프로덕션 빌드 기준 TTFB·LCP가 Task 014에서 기록한 로컬 기준선과 크게 어긋나지 않음(어긋나면 원인 기록)
+
+  - **검증 요약**:
 
 ---
 
@@ -290,7 +368,7 @@ Phase 0(초기화)까지는 이미 완료된 상태이며, 아래 자산을 그�
 | Phase 1: 골격 및 데이터 계약 | 3 | 3 | ✅ 완료 |
 | Phase 2: UI/UX 완성 | 3 | 3 | ✅ 완료 |
 | Phase 3: Notion 연동 및 핵심 기능 | 5 | 5 | ✅ 완료 |
-| Phase 4: PDF 및 인쇄 품질 | 2 | 1 | 진행중 (Task 013 대기) |
+| Phase 4: PDF 및 인쇄 품질 | 2 | 2 | ✅ 완료 |
 | Phase 5: 성능·배포 | 2 | 0 | 대기 |
 
-**다음 작업**: Task 013 — 인쇄·반응형 회귀 검증
+**다음 작업**: Task 014 — 성능·캐싱 전략 및 관측성 구성
