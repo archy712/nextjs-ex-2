@@ -1,5 +1,6 @@
 "use client"
 
+import { Loader2Icon } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useTransition } from "react"
 
@@ -17,7 +18,8 @@ export function InvoiceRetryButton() {
       disabled={isPending}
       onClick={() => startTransition(() => router.refresh())}
     >
-      다시 시도
+      {isPending && <Loader2Icon className="size-4 animate-spin" />}
+      {isPending ? "재시도 중..." : "다시 시도"}
     </Button>
   )
 }

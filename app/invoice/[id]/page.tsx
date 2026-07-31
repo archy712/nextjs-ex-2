@@ -71,6 +71,11 @@ export default async function InvoicePage({
     // 상세 원인(Notion 오류 코드/스택)은 서버 로그에만 남기고 화면에는 노출하지 않는다.
     console.error("[invoice] Notion 조회 실패:", error);
 
+    // 결정 사항(Task 010): 여기서 정상적으로 JSX를 반환하므로 실제 HTTP 상태 코드는 200이다
+    // (throw하지 않으므로 App Router 오류 경계도 거치지 않음 — 이 페이지가 noindex라
+    // 크롤러가 상태 코드를 신뢰할 필요가 없고, 화면 안내 정확성이 상태 코드 정확성보다
+    // 우선한다고 판단해 미들웨어/Route Handler로 503을 강제하는 우회는 도입하지 않음).
+
     return (
       <main className="flex flex-1 items-center justify-center p-6">
         <InvoiceErrorState variant="unavailable" action={<InvoiceRetryButton />} />
