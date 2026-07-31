@@ -296,7 +296,7 @@ Phase 0(초기화)까지는 이미 완료된 상태이며, 아래 자산을 그�
   - ✅ **Vercel 프로젝트 연결**: `vercel login`(사용자 직접 인증) → `vercel link --yes`로 GitHub 저장소(`archy712/nextjs-ex-2`)와 동일 이름의 기존 프로젝트(`archy2/nextjs-ex-2`)에 연결됨, `vercel git connect`로 GitHub 연동 확인(이미 연결되어 있었음 — 이후 `main` 브랜치에 push하면 자동 배포). Framework Preset은 Next.js로 자동 인식(`Detected Next.js version: 16.2.12`)
   - ✅ **환경변수**: `vercel env ls`로 `NOTION_API_KEY`, `NOTION_ITEMS_DATA_SOURCE_ID`가 Production·Preview 양쪽에 이미 암호화 등록되어 있음을 확인(둘 다 `NEXT_PUBLIC_` 미사용)
   - ⚠️ **라이브 검증 중 발견한 실제 문제와 수정**: `vercel link --yes`가 연결한 기존 프로젝트의 프로덕션 배포가 **현재 로컬 코드보다 오래된 버전**이었음(배포된 HTML의 다운로드 버튼에 `print:hidden` 클래스가 없고 클릭해도 `window.print()`가 호출되지 않음 — Task012 이전 상태로 추정). `npx vercel --prod`로 현재 코드베이스를 명시적으로 재배포해 해결하고, 재배포 후 `print:hidden` 클래스 존재 및 `window.print` 스텁 호출을 재검증함. **프로덕션 배포 후에는 반드시 렌더링된 HTML이 최신 소스와 일치하는지 직접 확인해야 한다**는 교훈을 남김(자동 링크된 기존 프로젝트를 과신하지 말 것)
-  - ✅ **Notion Invoices DB의 URL Formula 속성**: PRD에 계획만 되어 있고 실제로 생성된 적이 없었음(`docs/PRD.md`의 "Notion이 페이지 ID 기반 조회 URL을 수식(Formula) 속성으로 자동 계산" 요구사항이 미구현 상태였음을 이번에 발견) → `invoice_url` FORMULA 속성을 신규 생성: `"https://nextjs-ex-2-rosy.vercel.app/invoice/" + id()`. Notion MCP가 formula/rollup 계산값을 API로 노출하지 않아(`total_amount`와 동일하게 `<omitted />`/`formulaResult://` 참조로만 반환) 실제 계산된 문자열은 API로 재확인 불가 — 사용자에게 Notion UI에서 육안 확인 요청
+  - ✅ **Notion Invoices DB의 URL Formula 속성**: PRD에 계획만 되어 있고 실제로 생성된 적이 없었음(`docs/PRD.md`의 "Notion이 페이지 ID 기반 조회 URL을 수식(Formula) 속성으로 자동 계산" 요구사항이 미구현 상태였음을 이번에 발견) → `invoice_url` FORMULA 속성을 신규 생성: `"https://nextjs-ex-2-rosy.vercel.app/invoice/" + id()`. Notion MCP가 formula/rollup 계산값을 API로 노출하지 않아(`total_amount`와 동일하게 `<omitted />`/`formulaResult://` 참조로만 반환) 실제 계산된 문자열은 API로 재확인 불가 — 사용자가 Notion UI 스크린샷으로 확인, 3건 모두 `https://nextjs-ex-2-rosy.vercel.app/invoice/<32자리 hex id>` 형식으로 정확히 계산됨을 확인함
   - ✅ **문서 갱신**: `README.md` — PDF 생성 방식을 `window.print()` + 인쇄 전용 CSS로 정정(`@react-pdf/renderer` 오기 제거), "`use cache` 캐싱"·"Notion rate limit 대응 캐싱" 서술 제거(Task 014 결정과 일치하도록), 개발 상태 체크리스트를 실제 완료 Phase에 맞게 갱신, "Notion 워크스페이스 설정" 절 신규 추가(통합 생성 → DB 공유 → data source ID 확인 → `.env.local` 설정 절차). `CLAUDE.md` — "아직 미구현" 문구 제거, "Notion 연동 운영 주의사항" 절 추가(환경변수, `property-names.ts` 동기화, 캐싱 미사용 결정 요약)
   - ✅ **프로덕션 스모크 테스트**: 실제 배포 URL(`https://nextjs-ex-2-rosy.vercel.app`)에서 아래 테스트 체크리스트 전부 라이브 검증
   - ✅ **성능 대조**: 프로덕션 TTFB 중앙값 ≈ 9.7ms, LCP 중앙값 ≈ 596ms — Task 014의 로컬 기준선(TTFB ≈ 7.4ms, LCP ≈ 616ms)과 유의미한 차이 없음
@@ -304,7 +304,7 @@ Phase 0(초기화)까지는 이미 완료된 상태이며, 아래 자산을 그�
   - **관련 기능**: 전체(F001~F013) 프로덕션 검증
   - **수락 기준**
     - [x] Production 배포가 성공하고, 실제 도메인의 견적서 링크로 조회·PDF 저장이 동작함
-    - [x] Notion Formula 속성이 생성됨(계산된 링크의 최종 육안 확인은 사용자 확인 대기)
+    - [x] Notion Formula 속성이 생성되고, 계산된 링크가 정확함을 사용자가 육안으로 확인함
     - [x] 프로덕션 응답·번들 어디에도 Notion 토큰이 노출되지 않음
     - [x] `README.md`/`CLAUDE.md`가 실제 구현과 일치함(특히 PDF 생성 방식과 캐싱 전략)
     - [x] 릴리스 태그가 생성되고 로드맵 전 Phase가 ✅로 마감됨
@@ -344,4 +344,4 @@ Phase 0(초기화)까지는 이미 완료된 상태이며, 아래 자산을 그�
 | Phase 4: PDF 및 인쇄 품질 | 2 | 2 | ✅ 완료 |
 | Phase 5: 성능·배포 | 2 | 2 | ✅ 완료 |
 
-**다음 작업**: 없음 — 로드맵상 전 Phase 완료. Notion `invoice_url` 포뮬러 값 육안 확인, `git push`(및 릴리스 태그 push) 여부 확인 후 유지보수 단계로 전환
+**다음 작업**: 없음 — 로드맵상 전 Phase 완료(v1.0.0 릴리스, `main`/태그 push 및 Notion `invoice_url` 포뮬러 확인 완료). 이후는 유지보수 단계
