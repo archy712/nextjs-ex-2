@@ -128,3 +128,54 @@
     @apply font-sans;
   }
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  /* 다크 모드로 인쇄해도 :root와 동일한 라이트 톤(흰 배경·검정에 가까운 텍스트)을 쓰도록 강제 */
+  :root,
+  .dark {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.145 0 0);
+    --border: oklch(0.85 0 0);
+  }
+
+  /* 다운로드 버튼(PDF 다운로드 버튼만 존재)과 토스트는 인쇄물에 의미가 없으므로 숨김 */
+  [data-slot="button"],
+  [data-sonner-toaster] {
+    display: none !important;
+  }
+
+  /* 만료 뱃지처럼 배경색으로 정보를 전달하는 곳만 인쇄 시 배경을 유지(브라우저 기본은 잉크 절약을 위해 배경을 생략) */
+  [data-slot="badge"] {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* 화면에서는 좁은 폭에서 가로 스크롤하지만 인쇄는 스크롤이 불가능하므로 표가 잘리지 않게 함 */
+  [data-slot="table-container"] {
+    overflow: visible !important;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tr,
+  td,
+  th {
+    break-inside: avoid;
+  }
+
+  /* 일부 브라우저의 인쇄 기본 스타일이 링크 뒤에 URL을 덧붙이는 것을 방지 */
+  a[href]::after {
+    content: none !important;
+  }
+}

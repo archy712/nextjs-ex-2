@@ -84,7 +84,7 @@ export default async function InvoicePage({
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-4 sm:p-6">
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-4 sm:p-6 print:max-w-none print:gap-4 print:p-0">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <InvoiceHeader invoice={invoice} />
         <DownloadButton />

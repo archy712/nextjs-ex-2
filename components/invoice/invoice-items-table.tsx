@@ -24,7 +24,10 @@ export function InvoiceItemsTable({ items }: { items: InvoiceItem[] }) {
 
   return (
     <>
-      <div className="hidden md:block">
+      {/* A4 인쇄 가능 폭(margin 12mm 기준 약 703px)이 md: 브레이크포인트(768px)보다 좁아
+          print: 없이는 인쇄 시 모바일 카드 레이아웃으로 전환되어 thead 반복이 무력화되므로
+          print:block/print:hidden으로 인쇄 시 항상 표 레이아웃을 쓰도록 고정한다. */}
+      <div className="hidden md:block print:block">
         <Table>
           <TableCaption>견적 항목 목록</TableCaption>
           <TableHeader>
@@ -60,7 +63,7 @@ export function InvoiceItemsTable({ items }: { items: InvoiceItem[] }) {
         </Table>
       </div>
 
-      <div className="flex flex-col gap-3 md:hidden">
+      <div className="flex flex-col gap-3 md:hidden print:hidden">
         <h2 className="sr-only">견적 항목 목록</h2>
         {items.map((item) => (
           <Card key={item.id} size="sm">
