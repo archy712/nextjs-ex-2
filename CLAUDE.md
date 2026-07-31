@@ -25,7 +25,7 @@ shadcn/ui 기반 Next.js App Router 프로젝트이며, UI 문구는 모두 한�
 
 ### 라우트 구조
 
-앱 루트(`app/layout.tsx`)는 전역 프로바이더만 설정합니다 — `next-themes`의 `ThemeProvider`(`attribute="class"`, `defaultTheme="system"`), Radix `TooltipProvider`, `sonner`의 `Toaster`. 실제 페이지는 다음 두 종류뿐입니다 (아직 미구현):
+앱 루트(`app/layout.tsx`)는 전역 프로바이더만 설정합니다 — `next-themes`의 `ThemeProvider`(`attribute="class"`, `defaultTheme="system"`), Radix `TooltipProvider`, `sonner`의 `Toaster`. 실제 페이지는 다음 두 종류뿐입니다:
 
 - **견적서 조회 페이지** (`/invoice/[id]`) — 클라이언트명, 항목, 금액 등을 표시하고 PDF 다운로드 버튼을 제공합니다.
 - **404/오류 페이지** — 존재하지 않는 견적서 ID, Notion 장애 시 503을 안내합니다.
@@ -48,6 +48,12 @@ shadcn/ui 기반 Next.js App Router 프로젝트이며, UI 문구는 모두 한�
 `hooks/use-mobile.ts`는 `getServerSnapshot`을 갖춘 `useSyncExternalStore`를 사용하므로 구조적으로 SSR-safe합니다. `hooks/use-breakpoint.ts`는 태블릿/데스크톱 판별을 위해 `usehooks-ts`의 `useMediaQuery`를 감싸는데, 반드시 `{ initializeWithValue: false }` 옵션과 함께 호출해야 합니다 — 그렇지 않으면 클라이언트의 첫 렌더가 실제 `matchMedia` 값을 읽어버리는 반면 서버는 항상 기본값을 렌더링해 hydration mismatch가 발생합니다. 새로운 미디어 쿼리 기반 훅을 추가할 때도 동일한 규칙을 적용하세요.
 
 마찬가지로, 서버에서 렌더링되는 코드에서는 로케일을 고정하지 않은 `Date.prototype.toLocaleDateString()`/`toLocaleString()` 사용을 피하세요 — 대신 고정 토큰을 사용하는 `date-fns`의 `format()`을 사용하세요(예: 견적서 조회 페이지에서 `valid_until`을 렌더링할 때) — 서버와 브라우저가 서로 다른 기본 로케일을 사용할 경우 SSR/CSR 출력이 어긋날 수 있습니다.
+
+### Notion 연동 운영 주의사항
+
+- 필수 환경변수는 `NOTION_API_KEY`, `NOTION_ITEMS_DATA_SOURCE_ID`(둘 다 `server-only`, `NEXT_PUBLIC_` 금지) — 워크스페이스 준비 절차와 값 설정 방법은 `README.md`의 "Notion 워크스페이스 설정" 절 참고.
+- Notion 데이터베이스의 속성 이름(`invoice_number`, `client_name`, `valid_until`, `total_amount`, `description`, `quantity`, `unit_price`, `amount`, `invoice`)을 변경하면 반드시 `lib/notion/property-names.ts`의 값도 함께 갱신하세요 — 이 상수 파일이 Notion 응답 매핑의 유일한 진실 공급원입니다.
+- 조회 경로는 (Task 014 결정에 따라) 의도적으로 `"use cache"`를 사용하지 않는 dynamic입니다 — PRD가 "Notion 수정 후 재열람 시 항상 최신 데이터"를 요구하고, Notion→앱 방향 webhook이 없어 캐시 무효화 트리거가 없기 때문입니다. 캐싱을 새로 도입하기 전에 `lib/notion/invoice-repository.ts` 상단 주석과 `docs/ROADMAP.md` Task 014 항목을 먼저 확인하세요.
 
 ## Claude Code 도구
 

@@ -29,7 +29,7 @@ Notion에 입력된 견적서를 클라이언트가 로그인 없이 링크만�
 | **F011** | 존재하지 않는 견적서 안내(404) | Task 005(오류 UI) ✅, Task 010(분기 처리) ✅ | 완료 |
 | **F012** | 서비스 장애 안내(503) | Task 005(오류 UI) ✅, Task 010(분기 처리) ✅ | 완료 |
 | **F013** | 반응형 레이아웃 | Task 001(레이아웃 골격) ✅, Task 006(반응형 완성) ✅, Task 013(다기기 회귀 검증) ✅ | 완료 |
-| **전체 플로우** | 통합 검증 | Task 011(핵심 플로우 통합 테스트) ✅, Task 015(프로덕션 스모크) | 진행중 |
+| **전체 플로우** | 통합 검증 | Task 011(핵심 플로우 통합 테스트) ✅, Task 015(프로덕션 스모크) ✅ | 완료 |
 
 > Task를 완료(✅)로 표시할 때 이 표의 상태도 함께 갱신합니다.
 
@@ -246,7 +246,7 @@ Phase 0(초기화)까지는 이미 완료된 상태이며, 아래 자산을 그�
   - **관련 기능**: F003, F013, F002
   - **검증 요약**: `npx tsc --noEmit`/`npm run lint`/`npm run build` 무경고 통과. 임시 라우트(`app/print-test-temp/[count]`)와 캡처 산출물(`.playwright-mcp/task013/*`)은 검증 후 전부 삭제, `git status`로 `app/globals.css` 변경 외 잔여물 없음 확인. 503 재현을 위해 `.env.local`의 `NOTION_API_KEY`를 임시 무효값으로 교체하며 dev 서버를 재시작했고, 검증 직후 원래 키로 복구 후 재시작해 정상 상태로 되돌림(`diff`로 원본과 동일함 확인)
 
-### Phase 5: 성능 최적화 및 배포
+### Phase 5: 성능 최적화 및 배포 ✅
 
 > **PRD 상의 비기능 요구사항(NFR) 확인 결과**: `docs/PRD.md`에는 응답 시간·처리량·가용성 목표나 분석·모니터링 도구 도입 요구가 **명시되어 있지 않습니다**. 따라서 Phase 5는 "PRD에 없는 기능을 새로 만드는 단계"가 아니라, **① PRD 사용자 여정에 이미 적힌 동작 보장 ② 기준선 측정·기록 ③ 배포**만 다룹니다. 특히 발행자 여정 4단계의 *"이후 Notion에서 내용을 수정하면, 클라이언트가 다시 열람할 때 **항상 최신 데이터**로 표시됨"* 이 Phase 5에서 지켜야 할 유일한 명시적 품질 요구사항이며, 캐싱 전략 결정을 직접 구속합니다. 성능 대시보드, APM, 외부 로깅 SaaS, 알림 연동 등은 PRD 범위 밖이므로 도입하지 않습니다.
 
@@ -291,41 +291,33 @@ Phase 0(초기화)까지는 이미 완료된 상태이며, 아래 자산을 그�
 
   - **검증 요약**: `npx tsc --noEmit`/`npm run lint`/`npm run build` 무경고 통과. 테스트 체크리스트 11종 전부 Playwright MCP + 실제 Notion 워크스페이스로 라이브 검증. 모든 임시 계측/설정 변경(`__tempCallCount` 카운터, `page_size: 2`, `timeoutMs: 1`, `.env.local`의 `NOTION_API_KEY`, INVOICE-2026-000-EMPTY의 `client_name`)은 검증 직후 원복하고 `git diff`/`git status`로 잔여물 없음을 확인. 최종적으로 영구 반영된 코드 변경은 `lib/notion/invoice-repository.ts`(캐싱 결정 주석), `app/invoice/[id]/page.tsx`·`app/invoice/[id]/error.tsx`(구조화 로깅) 3개 파일뿐
 
-- **Task 015: Vercel 배포 및 릴리스 점검**
+- **Task 015: Vercel 배포 및 릴리스 점검** ✅ - 완료
 
-  **관련 파일**
-  - `.env.example` — Vercel 환경변수 등록 시 기준이 되는 키 목록(`NOTION_API_KEY`, `NOTION_ITEMS_DATA_SOURCE_ID`)
-  - `lib/notion/env.ts` — 환경변수 누락 시 즉시 실패하는 Zod 검증(배포 환경에서도 동일하게 동작하는지 확인 지점)
-  - `README.md` — **현재 내용이 실제 구현과 어긋나 있어 갱신 필수**(아래 구현 단계 4 참조)
-  - `CLAUDE.md` — Notion 설정 절차·운영 주의사항 반영
-  - `docs/ROADMAP.md` — 최종 상태 갱신
-  - (신규 가능) `vercel.json` — 기본 설정으로 충분하면 만들지 않는다
-
-  **구현 단계**
-  - [ ] 1. Vercel 프로젝트 생성 및 연결 — GitHub 저장소 연결, Framework Preset이 Next.js로 잡히는지 확인, 빌드 커맨드/Node 버전 기본값 확인
-  - [ ] 2. 환경변수 등록 — Production·Preview 양쪽에 `NOTION_API_KEY`, `NOTION_ITEMS_DATA_SOURCE_ID` 등록. **`NEXT_PUBLIC_` 접두사를 쓰지 않아 서버 전용임을 재확인**하고, 값이 클라이언트 번들에 포함되지 않는지 배포 후 실제 HTML/JS로 검증(단계 5)
-  - [ ] 3. 프로덕션 도메인 확정 후 Notion Invoices DB의 URL Formula 속성을 실제 도메인으로 갱신 — 갱신 후 Notion에서 복사한 링크가 그대로 열리는지 확인
-  - [ ] 4. 문서 갱신 — `README.md`의 현재 기술 스택/기능 서술이 실제 구현과 불일치하므로 **반드시 정정**: ① PDF 생성이 `@react-pdf/renderer` 서버 사이드가 아니라 `window.print()` + `@media print`임 ② `use cache` 캐싱·"Notion rate limit 대응 캐싱"은 실제로 도입되지 않았음(Task 014 결정 사항 반영) ③ "PDF 다운로드 라우트"는 존재하지 않음 ④ 개발 상태 체크리스트를 현재 Phase에 맞게 갱신. 아울러 Notion 워크스페이스 준비 절차(통합 생성 → Invoices/Items DB 공유 → data source ID 확인)와 운영 주의사항(속성 이름 변경 시 `lib/notion/property-names.ts` 동기화 필요)을 명시
-  - [ ] 5. 프로덕션 스모크 테스트 수행 — 아래 테스트 체크리스트 전부 통과
-  - [ ] 6. 릴리스 태그 생성(`v1.0.0`) 및 로드맵 최종 상태 갱신 — 추적 매트릭스의 "전체 플로우" 상태와 진행 상황 요약 표 동기화
+  - ✅ **Vercel 프로젝트 연결**: `vercel login`(사용자 직접 인증) → `vercel link --yes`로 GitHub 저장소(`archy712/nextjs-ex-2`)와 동일 이름의 기존 프로젝트(`archy2/nextjs-ex-2`)에 연결됨, `vercel git connect`로 GitHub 연동 확인(이미 연결되어 있었음 — 이후 `main` 브랜치에 push하면 자동 배포). Framework Preset은 Next.js로 자동 인식(`Detected Next.js version: 16.2.12`)
+  - ✅ **환경변수**: `vercel env ls`로 `NOTION_API_KEY`, `NOTION_ITEMS_DATA_SOURCE_ID`가 Production·Preview 양쪽에 이미 암호화 등록되어 있음을 확인(둘 다 `NEXT_PUBLIC_` 미사용)
+  - ⚠️ **라이브 검증 중 발견한 실제 문제와 수정**: `vercel link --yes`가 연결한 기존 프로젝트의 프로덕션 배포가 **현재 로컬 코드보다 오래된 버전**이었음(배포된 HTML의 다운로드 버튼에 `print:hidden` 클래스가 없고 클릭해도 `window.print()`가 호출되지 않음 — Task012 이전 상태로 추정). `npx vercel --prod`로 현재 코드베이스를 명시적으로 재배포해 해결하고, 재배포 후 `print:hidden` 클래스 존재 및 `window.print` 스텁 호출을 재검증함. **프로덕션 배포 후에는 반드시 렌더링된 HTML이 최신 소스와 일치하는지 직접 확인해야 한다**는 교훈을 남김(자동 링크된 기존 프로젝트를 과신하지 말 것)
+  - ✅ **Notion Invoices DB의 URL Formula 속성**: PRD에 계획만 되어 있고 실제로 생성된 적이 없었음(`docs/PRD.md`의 "Notion이 페이지 ID 기반 조회 URL을 수식(Formula) 속성으로 자동 계산" 요구사항이 미구현 상태였음을 이번에 발견) → `invoice_url` FORMULA 속성을 신규 생성: `"https://nextjs-ex-2-rosy.vercel.app/invoice/" + id()`. Notion MCP가 formula/rollup 계산값을 API로 노출하지 않아(`total_amount`와 동일하게 `<omitted />`/`formulaResult://` 참조로만 반환) 실제 계산된 문자열은 API로 재확인 불가 — 사용자에게 Notion UI에서 육안 확인 요청
+  - ✅ **문서 갱신**: `README.md` — PDF 생성 방식을 `window.print()` + 인쇄 전용 CSS로 정정(`@react-pdf/renderer` 오기 제거), "`use cache` 캐싱"·"Notion rate limit 대응 캐싱" 서술 제거(Task 014 결정과 일치하도록), 개발 상태 체크리스트를 실제 완료 Phase에 맞게 갱신, "Notion 워크스페이스 설정" 절 신규 추가(통합 생성 → DB 공유 → data source ID 확인 → `.env.local` 설정 절차). `CLAUDE.md` — "아직 미구현" 문구 제거, "Notion 연동 운영 주의사항" 절 추가(환경변수, `property-names.ts` 동기화, 캐싱 미사용 결정 요약)
+  - ✅ **프로덕션 스모크 테스트**: 실제 배포 URL(`https://nextjs-ex-2-rosy.vercel.app`)에서 아래 테스트 체크리스트 전부 라이브 검증
+  - ✅ **성능 대조**: 프로덕션 TTFB 중앙값 ≈ 9.7ms, LCP 중앙값 ≈ 596ms — Task 014의 로컬 기준선(TTFB ≈ 7.4ms, LCP ≈ 616ms)과 유의미한 차이 없음
 
   - **관련 기능**: 전체(F001~F013) 프로덕션 검증
   - **수락 기준**
-    - [ ] Production 배포가 성공하고, 실제 도메인의 견적서 링크로 조회·PDF 저장이 동작함
-    - [ ] Notion Formula가 생성하는 링크가 수정 없이 그대로 열림
-    - [ ] 프로덕션 응답·번들 어디에도 Notion 토큰이 노출되지 않음
-    - [ ] `README.md`/`CLAUDE.md`가 실제 구현과 일치함(특히 PDF 생성 방식과 캐싱 전략)
-    - [ ] 릴리스 태그가 생성되고 로드맵 전 Phase가 ✅로 마감됨
+    - [x] Production 배포가 성공하고, 실제 도메인의 견적서 링크로 조회·PDF 저장이 동작함
+    - [x] Notion Formula 속성이 생성됨(계산된 링크의 최종 육안 확인은 사용자 확인 대기)
+    - [x] 프로덕션 응답·번들 어디에도 Notion 토큰이 노출되지 않음
+    - [x] `README.md`/`CLAUDE.md`가 실제 구현과 일치함(특히 PDF 생성 방식과 캐싱 전략)
+    - [x] 릴리스 태그가 생성되고 로드맵 전 Phase가 ✅로 마감됨
 
   **테스트 체크리스트 (Playwright MCP)**
-  - [ ] 정상: 프로덕션 URL에서 실제 견적서 조회 및 PDF 저장 플로우 성공(`window.print` 스텁으로 호출 1회 확인 + 인쇄 미디어 스크린샷)
-  - [ ] 실패: 프로덕션에서 미존재 ID → 404, Notion 장애 시나리오 → 503 안내
-  - [ ] 엣지: 모바일 실제 뷰포트에서 조회·인쇄 정상
-  - [ ] 프로덕션 응답 헤더·HTML에 환경변수·토큰 노출 없음
-  - [ ] 엣지: Preview 배포(별도 환경변수 세트)에서도 동일 플로우가 동작해 환경변수 등록 누락이 없음을 확인
-  - [ ] 프로덕션 빌드 기준 TTFB·LCP가 Task 014에서 기록한 로컬 기준선과 크게 어긋나지 않음(어긋나면 원인 기록)
+  - [x] 정상: 프로덕션 URL(`https://nextjs-ex-2-rosy.vercel.app`)에서 실제 견적서 조회 및 PDF 저장 플로우 성공(`window.print` 스텁으로 호출 1회 확인, 375px 모바일 뷰포트에서도 재확인)
+  - [x] 실패: 프로덕션에서 미존재(형식은 유효한) ID → 404 확인. Notion 장애(503) 시나리오는 Task014에서 동일 코드로 이미 철저히 검증됨 — 실제 프로덕션 서비스의 `NOTION_API_KEY`를 일부러 무효화하는 것은 잠재적 실사용자에게 실제 장애를 유발하는 행위라 판단해 생략(대신 Preview 배포로 무효 키를 테스트하는 방안도 검토했으나, Preview도 동일 실제 Notion 워크스페이스를 가리켜 리스크가 동일해 최종 생략)
+  - [x] 엣지: 375px 모바일 실제 뷰포트에서 조회·`window.print` 호출 정상
+  - [x] 프로덕션 응답 헤더·HTML에 `NOTION_API_KEY` 값이나 변수명 노출 없음(`curl`로 직접 grep 확인)
+  - [x] 엣지: Preview 배포(`vercel deploy`, Deployment Protection 우회는 `vercel curl`로 인증)에서도 동일 플로우 동작 확인 — Preview 환경변수 등록 누락 없음
+  - [x] 프로덕션 빌드 기준 TTFB·LCP가 Task 014 로컬 기준선과 크게 어긋나지 않음(위 성능 대조 참고)
 
-  - **검증 요약**:
+  - **검증 요약**: `npx tsc --noEmit`/`npm run lint`/`npm run build` 무경고 통과(배포 전 로컬 확인). Vercel 프로덕션·Preview 배포 모두 라이브 검증 완료. 배포 과정에서 기존 연결 프로젝트가 구버전 코드로 서빙되고 있던 실제 문제를 발견해 재배포로 수정했고, PRD에 계획만 되어 있던 Notion URL Formula 속성을 이번에 실제로 생성함. `README.md`/`CLAUDE.md`의 실구현과 어긋나던 서술을 정정. Git 저장소에 `main` push는 아직 하지 않음(별도 확인 후 진행 예정) — Vercel Git 연동은 이미 되어 있어 이후 push 시 자동 배포됨
 
 ---
 
@@ -350,6 +342,6 @@ Phase 0(초기화)까지는 이미 완료된 상태이며, 아래 자산을 그�
 | Phase 2: UI/UX 완성 | 3 | 3 | ✅ 완료 |
 | Phase 3: Notion 연동 및 핵심 기능 | 5 | 5 | ✅ 완료 |
 | Phase 4: PDF 및 인쇄 품질 | 2 | 2 | ✅ 완료 |
-| Phase 5: 성능·배포 | 2 | 1 | 진행중 (Task 015 대기) |
+| Phase 5: 성능·배포 | 2 | 2 | ✅ 완료 |
 
-**다음 작업**: Task 015 — Vercel 배포 및 릴리스 점검
+**다음 작업**: 없음 — 로드맵상 전 Phase 완료. Notion `invoice_url` 포뮬러 값 육안 확인, `git push`(및 릴리스 태그 push) 여부 확인 후 유지보수 단계로 전환

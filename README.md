@@ -15,11 +15,11 @@
 
 ## ⚡ 핵심 기능
 
-- Notion API(`dataSources.query`)를 통한 견적서 + 항목 데이터 조회 (`use cache`로 캐싱)
-- 고유 URL 기반 견적서 조회 (ID 형식 검증 + 데이터소스 소속 권한 경계 확인)
-- 서버가 최신 데이터를 재조회해 렌더링하는 PDF 다운로드 (한글 폰트 포함)
+- Notion API(`pages.retrieve` + `dataSources.query`)를 통한 견적서 + 항목 데이터 조회 — 매 요청마다 최신 데이터를 dynamic으로 재조회(캐싱 미사용, [핵심 기술 결정 사항](./docs/ROADMAP.md#핵심-기술-결정-사항-구현-시-반드시-준수) 참고)
+- 고유 URL 기반 견적서 조회 (ID 형식 검증 → 404/503 구분 안내)
+- `window.print()` + 인쇄 전용 CSS(`@media print`)로 화면을 그대로 PDF 저장(별도 서버 렌더링 없음)
 - 반응형 레이아웃 (모바일/태블릿/데스크톱)
-- Notion rate limit(3 req/s) 대응 캐싱 및 429/503 처리
+- Notion API 타임아웃(5초)·자동 재시도 및 404/503 오류 분기 처리
 
 ## 🛠️ 기술 스택
 
@@ -30,8 +30,31 @@
 - UI Components: shadcn/ui (`radix-ui` 패키지 기반, `style: "radix-nova"`) — `table`, `card`, `badge`, `skeleton` 등
 - 검증: Zod 4 (라우트 파라미터 및 Notion 응답 매핑 검증)
 - 데이터 소스: Notion API (`@notionhq/client`)
-- PDF 생성: `@react-pdf/renderer` (서버 사이드, Node 런타임)
+- PDF 생성: 브라우저 `window.print()` + 인쇄 전용 CSS (서버 사이드 PDF 렌더링 없음)
 - 배포: Vercel
+
+## 🔧 Notion 워크스페이스 설정
+
+이 서비스는 Notion을 유일한 데이터 소스로 사용합니다. 최초 1회 다음 절차가 필요합니다.
+
+1. [Notion 통합(Integration) 생성](https://www.notion.so/my-integrations) 후 Internal Integration Secret 발급
+2. Notion에 견적서(Invoices)·항목(Items) 데이터베이스를 만들고, 각 데이터베이스를 위 통합과 공유(Share → Connections)
+   - Invoices 필요 속성: `invoice_number`(title), `client_name`(rich_text), `valid_until`(date), `items`(relation → Items), `total_amount`(rollup, sum)
+   - Items 필요 속성: `description`(title), `quantity`(number), `unit_price`(number), `amount`(formula), `invoice`(relation → Invoices)
+   - 속성 이름을 위와 다르게 만들었다면 `lib/notion/property-names.ts`의 값을 실제 이름에 맞게 함께 수정해야 합니다
+3. Items 데이터베이스의 데이터소스 ID 확인 — Notion에서 데이터베이스를 열고 우측 상단 `···` → `View data source` 또는 API로 조회해 `data_source_id` 값을 확인
+4. `.env.example`을 `.env.local`로 복사하고 값 채우기:
+
+```bash
+cp .env.example .env.local
+```
+
+```
+NOTION_API_KEY=<통합에서 발급받은 Internal Integration Secret>
+NOTION_ITEMS_DATA_SOURCE_ID=<Items 데이터베이스의 데이터소스 ID>
+```
+
+두 값 모두 서버 전용(`server-only`)이며 `NEXT_PUBLIC_` 접두사를 사용하지 않으므로 클라이언트 번들에 노출되지 않습니다. 값이 없거나 형식이 올바르지 않으면 빌드/실행 시 즉시 실패합니다(`lib/notion/env.ts`).
 
 ## 🚀 시작하기
 
@@ -55,9 +78,14 @@ npm run lint
 ## 📋 개발 상태
 
 - ✅ 스타터킷 초기화 (마케팅/대시보드 데모 제거, 프로젝트 구조 정리)
-- 🔄 견적서 조회 페이지 및 Notion 연동 구현
-- ⏳ PDF 다운로드 라우트 구현
-- ⏳ 404/503 에러 페이지 구현
+- ✅ 견적서 조회 페이지 및 Notion 연동 구현 (F001·F002)
+- ✅ PDF 다운로드 구현 — `window.print()` + 인쇄 전용 스타일 (F003)
+- ✅ 404/503 에러 페이지 구현 (F010~F012)
+- ✅ 반응형 레이아웃 및 접근성 회귀 검증 (F013)
+- ✅ 성능·캐싱 전략 결정 및 관측성(오류 로깅) 구성
+- 🔄 Vercel 배포 및 릴리스 점검
+
+상세 진행 현황은 [`docs/ROADMAP.md`](./docs/ROADMAP.md)를 참고하세요.
 
 ## 📖 문서
 
