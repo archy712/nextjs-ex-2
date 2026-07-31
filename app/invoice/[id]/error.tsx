@@ -13,7 +13,9 @@ export default function InvoiceError({
   unstable_retry: () => void;
 }) {
   useEffect(() => {
-    console.error(error);
+    // Task 014: 예기치 않은 예외의 전체 스택 대신 Next.js가 서버 로그와 연결해주는
+    // digest만 남긴다(클라이언트 콘솔에도 노출되므로 원본 스택/메시지는 남기지 않음).
+    console.error("invoice_error_boundary", { digest: error.digest });
   }, [error]);
 
   return (

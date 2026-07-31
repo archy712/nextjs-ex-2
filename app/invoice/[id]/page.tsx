@@ -1,6 +1,7 @@
 import { cache } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { APIResponseError } from "@notionhq/client";
 
 import { InvoiceHeader } from "@/components/invoice/invoice-header";
 import { InvoiceItemsTable } from "@/components/invoice/invoice-items-table";
@@ -68,8 +69,15 @@ export default async function InvoicePage({
   } catch (error) {
     if (!(error instanceof InvoiceUnavailableError)) throw error;
 
-    // 상세 원인(Notion 오류 코드/스택)은 서버 로그에만 남기고 화면에는 노출하지 않는다.
-    console.error("[invoice] Notion 조회 실패:", error);
+    // Task 014: 클라이언트명·API 토큰·원본 스택 전문은 남기지 않고, 장애 추적에 필요한
+    // 최소 정보(이벤트명·id 앞 8자·오류 클래스명·Notion 오류 코드)만 한 줄로 구조화해 서버 로그에 남긴다.
+    console.error("invoice_fetch_failed", {
+      invoiceId: id.slice(0, 8),
+      errorName: error.cause instanceof Error ? error.cause.name : "Unknown",
+      notionCode: APIResponseError.isAPIResponseError(error.cause)
+        ? error.cause.code
+        : undefined,
+    });
 
     // 결정 사항(Task 010): 여기서 정상적으로 JSX를 반환하므로 실제 HTTP 상태 코드는 200이다
     // (throw하지 않으므로 App Router 오류 경계도 거치지 않음 — 이 페이지가 noindex라

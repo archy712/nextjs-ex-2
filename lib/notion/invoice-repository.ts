@@ -14,6 +14,10 @@ import {
 } from "@/lib/invoice/schema"
 import type { Invoice, InvoiceItem } from "@/types/invoice"
 
+// Task 014 결정 사항: 이 파일은 의도적으로 "use cache"를 사용하지 않는다(dynamic 유지).
+// PRD가 "Notion 수정 후 재열람 시 항상 최신 데이터로 표시됨"을 명시적으로 요구하는데,
+// Notion → 앱 방향 webhook이 MVP 범위 밖이라 캐시를 무효화할 트리거가 없어 cacheTag를
+// 붙여도 실제로 무효화되지 않는다. 캐싱 재검토 시 이 제약이 해소됐는지 먼저 확인할 것.
 export class InvoiceNotFoundError extends Error {
   constructor(message: string, options?: ErrorOptions) {
     super(message, options)
