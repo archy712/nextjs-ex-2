@@ -150,6 +150,16 @@
     --destructive: oklch(0.577 0.245 27.325);
   }
 
+  /* next-themes가 스크롤바/폼 컨트롤 렌더링을 위해 html에 인라인으로 설정하는
+     color-scheme: dark를 그대로 두면, 실제 PDF 저장 시 콘텐츠가 그려지지 않은 영역
+     (페이지 여백, 마지막 페이지의 남은 공간)의 브라우저 기본 캔버스 배경이 검정으로
+     채워진다(Playwright page.pdf()와 macOS Quick Look 양쪽에서 재현 확인). 위 --background
+     오버라이드는 실제로 그려진 요소에만 적용되므로, 캔버스 자체의 기본값도 라이트로
+     강제해야 한다. */
+  html {
+    color-scheme: light !important;
+  }
+
   /* 토스트는 인쇄물에 의미가 없으므로 숨김. 다운로드 버튼은 컴포넌트에 직접 print:hidden을
      적용(components/invoice/download-button.tsx) — 전역 [data-slot="button"] 셀렉터로 숨기면
      향후 추가될 다른 버튼(예: 링크형 액션 버튼)까지 의도치 않게 인쇄에서 사라질 수 있어 지양 */
