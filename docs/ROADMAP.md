@@ -24,7 +24,7 @@ Notion에 입력된 견적서를 클라이언트가 로그인 없이 링크만�
 |---|---|---|---|
 | **F001** | Notion 데이터 조회 | Task 003(클라이언트 설정) ✅, Task 008(조회 계층) ✅, Task 009(페이지 연결) ✅ | 완료 |
 | **F002** | 견적서 내용 표시 | Task 004(UI) ✅, Task 006(반응형 표현) ✅, Task 009(실데이터 연결) ✅ | 완료 |
-| **F003** | PDF 다운로드(인쇄) | Task 004(버튼 UI) ✅, Task 012(인쇄 구현), Task 013(인쇄 품질 검증) | 진행중 |
+| **F003** | PDF 다운로드(인쇄) | Task 004(버튼 UI) ✅, Task 012(인쇄 구현) ✅, Task 013(인쇄 품질 검증) | 진행중 |
 | **F010** | 견적서 ID 형식 검증 | Task 002(Zod 스키마) ✅, Task 007(검증 로직·조기 차단) ✅ | 완료 |
 | **F011** | 존재하지 않는 견적서 안내(404) | Task 005(오류 UI) ✅, Task 010(분기 처리) ✅ | 완료 |
 | **F012** | 서비스 장애 안내(503) | Task 005(오류 UI) ✅, Task 010(분기 처리) ✅ | 완료 |
@@ -217,22 +217,24 @@ Phase 0(초기화)까지는 이미 완료된 상태이며, 아래 자산을 그�
 
 ### Phase 4: PDF 다운로드 및 인쇄 품질
 
-- **Task 012: PDF 다운로드 및 인쇄 전용 스타일 구현 (F003)**
-  - `components/invoice/download-button.tsx`를 `'use client'` 컴포넌트로 확정하고 클릭 시 `window.print()` 실행
-  - `app/globals.css`에 `@media print` 블록 추가: 다운로드 버튼·토스트·테마 관련 UI 숨김, 배경 흰색·텍스트 검정 강제(`.dark`에서 인쇄해도 동일), 필요한 곳에만 `print-color-adjust: exact`
-  - `@page { size: A4; margin: 12mm }` 및 페이지 나눔 제어: 표 행 `break-inside: avoid`, `thead { display: table-header-group }`로 다중 페이지 시 헤더 반복
-  - 항목이 많은 견적서에서 합계 블록이 단독 페이지로 밀리지 않도록 조정
-  - 인쇄 시 링크 URL·불필요한 여백이 남지 않도록 정리
+- **Task 012: PDF 다운로드 및 인쇄 전용 스타일 구현 (F003)** ✅ - 완료
+  - ✅ `components/invoice/download-button.tsx`를 `'use client'`로 전환, `onClick={() => window.print()}` 연결
+  - ✅ `app/globals.css`에 `@media print` 블록 추가: `[data-slot="button"]`(현재 페이지엔 다운로드 버튼뿐)·`[data-sonner-toaster]` 숨김. 배경/텍스트는 `:root`와 `.dark`를 인쇄 시 동일한 라이트 톤 CSS 변수로 오버라이드하는 방식으로 강제(개별 요소에 `color: black` 하드코딩 대신 기존 토큰 체계를 그대로 활용). `[data-slot="badge"]`(만료 뱃지처럼 배경색이 정보를 전달하는 곳)에만 `print-color-adjust: exact` 적용
+  - ✅ `@page { size: A4; margin: 12mm }`, `thead { display: table-header-group }`, `tr/td/th { break-inside: avoid }` 추가. `InvoiceTotal` 카드에 `print:break-inside-avoid`로 합계 블록 자체가 페이지 중간에 잘리지 않도록 처리
+  - ✅ `a[href]::after { content: none }`로 브라우저 기본 인쇄 스타일이 링크 뒤에 URL을 붙이는 것을 방지, `app/invoice/[id]/page.tsx`의 `<main>`에 `print:max-w-none print:p-0 print:gap-4`로 화면용 중앙 정렬 여백을 인쇄 시 제거
+  - ⚠️ **라이브 검증 중 발견한 실제 버그와 수정**: A4 인쇄 가능 폭(12mm 여백 기준 약 703px)이 `md:` 브레이크포인트(768px)보다 좁아, `print:` 없이는 인쇄가 **모바일 카드 레이아웃**으로 렌더링되어 `thead` 헤더 반복이 무력화되고 카드가 페이지 경계에서 중간 절단되는 실제 문제를 Playwright로 PDF를 직접 생성해 확인함. `components/invoice/invoice-items-table.tsx`의 두 래퍼에 `print:block`/`print:hidden`을 추가해 인쇄 시 항상 표 레이아웃을 쓰도록 고정하여 해결(수정 후 재검증 통과)
+  - **관련 기능**: F003
+  - **검증 요약**: `npx tsc --noEmit`/`npm run lint` 무경고 통과. 테스트 체크리스트 8종 전부 Playwright MCP로 라이브 검증 — 아래 참조. 항목 50개/0개 케이스는 실제 Notion 워크스페이스에 해당 데이터가 없어(Task008/009에서도 동일 사유로 미검증) 임시 라우트(`app/print-test-*-temp`, `lib/invoice/fixtures.ts`와 동일한 방식으로 합성 데이터 사용)로 검증 후 삭제(`git status`로 잔여물 없음 확인)
 
   **테스트 체크리스트 (Playwright MCP)**
-  - [ ] 정상: `browser_evaluate`로 `window.print`를 스텁한 뒤 버튼 클릭 → 호출 1회 확인
-  - [ ] 정상: 인쇄 미디어 에뮬레이션 상태의 `browser_take_screenshot`에서 버튼·토스트가 사라지고 본문만 남음
-  - [ ] 정상: 다크 모드에서 인쇄 뷰가 흰 배경/검정 텍스트로 렌더
-  - [ ] 실패: 인쇄가 차단·취소된 경우에도 페이지 상태가 유지되고 오류 화면으로 이탈하지 않음(PRD: 같은 페이지 유지)
-  - [ ] 엣지: 항목 50개 견적서 → 여러 페이지로 분할되며 표 헤더가 각 페이지에 반복, 행 중간 절단 없음
-  - [ ] 엣지: 항목 0개 견적서 인쇄 시에도 레이아웃 정상
-  - [ ] 엣지: 모바일 뷰포트에서 버튼 클릭 → 정상 동작
-  - [ ] `browser_console_messages`에 에러 없음
+  - [x] 정상: `browser_evaluate`로 `window.print`를 스텁한 뒤 버튼 클릭 → 호출 1회 확인
+  - [x] 정상: 인쇄 미디어 에뮬레이션 상태의 `browser_take_screenshot`에서 버튼·토스트가 사라지고 본문만 남음
+  - [x] 정상: 다크 모드에서 인쇄 뷰가 흰 배경/검정 텍스트로 렌더(`.dark` 클래스 추가 후 스크린샷 비교로 라이트 모드와 동일 확인)
+  - [x] 실패: `window.print`가 예외를 던지도록 스텁해 인쇄 차단·취소를 재현해도 페이지 URL·콘텐츠가 그대로 유지되고 오류 화면으로 이탈하지 않음(이벤트 핸들러 예외는 애초에 `error.tsx` 경계를 거치지 않음을 확인)
+  - [x] 엣지: 항목 50개(임시 라우트) → `page.pdf()`로 실제 PDF 생성해 3페이지로 분할, 매 페이지 상단에 "항목/수량/단가/금액" 헤더 반복, 행 중간 절단 없음을 PDF 페이지 이미지로 직접 확인(위 버그 수정 전에는 헤더 미반복·카드 중간 절단을 실측으로 확인 후 수정)
+  - [x] 엣지: 항목 0개(임시 라우트) 인쇄 시에도 "등록된 항목이 없습니다" 카드 + 합계 ₩0 레이아웃 정상
+  - [x] 엣지: 375px 모바일 뷰포트에서 버튼 클릭 → `window.print` 호출 1회 확인
+  - [x] `browser_console_messages`에 에러 없음(정상 플로우 전 구간 기준)
 
 - **Task 013: 인쇄·반응형 회귀 검증**
   - 375 / 768 / 1280 / 1920px 화면 스크린샷 확보 및 시각 회귀 확인
@@ -287,7 +289,7 @@ Phase 0(초기화)까지는 이미 완료된 상태이며, 아래 자산을 그�
 | Phase 1: 골격 및 데이터 계약 | 3 | 3 | ✅ 완료 |
 | Phase 2: UI/UX 완성 | 3 | 3 | ✅ 완료 |
 | Phase 3: Notion 연동 및 핵심 기능 | 5 | 5 | ✅ 완료 |
-| Phase 4: PDF 및 인쇄 품질 | 2 | 0 | 대기 |
+| Phase 4: PDF 및 인쇄 품질 | 2 | 1 | 진행중 (Task 013 대기) |
 | Phase 5: 성능·배포 | 2 | 0 | 대기 |
 
-**다음 작업**: Task 012 — PDF 다운로드 및 인쇄 전용 스타일 구현 (F003)
+**다음 작업**: Task 013 — 인쇄·반응형 회귀 검증
