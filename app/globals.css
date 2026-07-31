@@ -135,7 +135,9 @@
     margin: 12mm;
   }
 
-  /* 다크 모드로 인쇄해도 :root와 동일한 라이트 톤(흰 배경·검정에 가까운 텍스트)을 쓰도록 강제 */
+  /* 다크 모드로 인쇄해도 :root와 동일한 라이트 톤(흰 배경·검정에 가까운 텍스트)을 쓰도록 강제.
+     --muted-foreground는 --foreground와 완전히 동일하게 맞추지 않고 살짝 옅게 둬 "합계 금액"
+     라벨 등의 시각적 위계(연한 보조 텍스트)를 인쇄물에서도 유지한다. */
   :root,
   .dark {
     --background: oklch(1 0 0);
@@ -143,12 +145,14 @@
     --card: oklch(1 0 0);
     --card-foreground: oklch(0.145 0 0);
     --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.145 0 0);
+    --muted-foreground: oklch(0.35 0 0);
     --border: oklch(0.85 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
   }
 
-  /* 다운로드 버튼(PDF 다운로드 버튼만 존재)과 토스트는 인쇄물에 의미가 없으므로 숨김 */
-  [data-slot="button"],
+  /* 토스트는 인쇄물에 의미가 없으므로 숨김. 다운로드 버튼은 컴포넌트에 직접 print:hidden을
+     적용(components/invoice/download-button.tsx) — 전역 [data-slot="button"] 셀렉터로 숨기면
+     향후 추가될 다른 버튼(예: 링크형 액션 버튼)까지 의도치 않게 인쇄에서 사라질 수 있어 지양 */
   [data-sonner-toaster] {
     display: none !important;
   }
