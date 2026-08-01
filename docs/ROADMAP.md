@@ -245,7 +245,7 @@ v1 완료 시점(v1.0.0, 프로덕션 배포 완료) 기준의 실제 상태이�
     - [x] `npm run lint` / `npm run build` 무경고
   - **변경 사항 요약**: `lib/invoice/fixtures.ts`에 `InvoiceSummary` 더미 4세트(0/1/25/120건, id prefix `...9000...`로 v1과 분리) 추가. `invoice-list-table.tsx`(v1 `invoice-items-table.tsx`와 동일한 CSS 전용 반응형 분기, 링크 복사는 Task 021 예정 disabled placeholder), `admin-empty-state.tsx` 신규 구현. `nextjs-app-developer` 서브에이전트로 구현하고 code-reviewer로 재검토. **code-reviewer 지적으로 발견/수정**: (1) `cacheComponents: true` 환경에서 `isInvoiceExpired()`의 `Date.now()` 때문에 `/admin` 정적 프리렌더가 빌드 타임에 실패 — `app/admin/(protected)/page.tsx`에 `connection()`(next/server) 호출을 추가해 해결(Next.js 공식 문서의 `unstable_noStore` 대체 패턴과 일치, `loading.tsx`가 이미 Suspense 경계를 제공하므로 별도 `<Suspense>` 불필요, `npm run build` 결과 `/admin`이 Partial Prerender로 정상 분류됨을 확인). (2) `AdminEmptyState`와 Task 019 `error.tsx`가 `AdminShell`의 `<main className="p-4 sm:p-6">` 안에서 다시 `p-6`을 중첩해 패딩이 이중 적용되던 문제 — 두 파일 모두 자체 패딩 제거. Playwright로 1280/375px·라이트/다크 스크린샷, 실제 Notion 견적서·`/admin/login` 회귀 없음 확인.
 
-- **Task 021: 클라이언트 조회 링크 복사 기능 구현 (F021)**
+- **Task 021: 클라이언트 조회 링크 복사 기능 구현 (F021)** ✅
 
   목록의 각 행에서 해당 견적서의 클라이언트 조회 링크를 클립보드로 복사합니다. 클라이언트 컴포넌트 + 브라우저 API를 다루는 **비즈니스 로직 Task**이므로 테스트 체크리스트가 필수입니다.
 
@@ -258,6 +258,7 @@ v1 완료 시점(v1.0.0, 프로덕션 배포 완료) 기준의 실제 상태이�
   | **C. Notion `invoice_url` 포뮬러 값 사용** | Invoices DB의 기존 FORMULA 속성 값을 그대로 조회해 복사 | Notion과 100% 동일한 링크 보장 | 포뮬러 값 조회를 위한 스키마 확장 필요, 포뮬러가 비어 있거나 변경되면 목록이 깨짐. 도메인 하드코딩이 Notion 쪽에 있어 이전 시 두 곳을 고쳐야 함 |
 
   - **권장: B** — A는 개발 중 실수로 `localhost:3000` 링크를 클라이언트에게 보내는 사고가 현실적으로 발생하고, C는 Notion 포뮬러 문자열에 의존성이 생겨 취약함. 구현 시 최종 결정과 근거를 이 표 아래에 기록할 것
+  - **최종 결정: B 채택**. `lib/admin/env.ts`에 `SITE_URL: z.string().url()`을 추가해 관리자 전용 환경변수로 관리(Notion 무관, `ADMIN_PASSWORD`/`ADMIN_SESSION_SECRET`과 같은 파일 — `lib/admin/env.ts`를 import하는 곳이 `app/admin/(protected)/page.tsx` 한 곳뿐임을 `grep`으로 확인해 Task 017류 사고 재발 위험 없음을 검증). `.env.local`에도 로컬 개발 중 항상 프로덕션 도메인(`https://nextjs-ex-2-rosy.vercel.app`)을 쓰도록 설정 — 이게 B안의 핵심 목적(어디서 복사해도 클라이언트가 열 수 있는 링크 보장)
   - `lib/invoice/client-link.ts` 신설 — `buildInvoiceUrl(baseUrl, id)` 순수 함수(끝 슬래시 중복 제거, `normalizeInvoiceId` 적용). 서버/클라이언트 양쪽에서 쓸 수 있는 순수 함수로 두고 `server-only`를 붙이지 않음
   - `components/admin/copy-link-button.tsx` — `'use client'`. `navigator.clipboard.writeText()` 호출 → 성공 시 sonner `toast.success("링크를 복사했습니다")`, 실패 시 `toast.error(...)` + 복사할 URL을 선택 가능한 텍스트로 노출하는 **폴백 경로** 제공
   - **보안 컨텍스트 주의**: `navigator.clipboard`는 secure context(HTTPS 또는 `localhost`)에서만 존재합니다. 프로덕션(Vercel HTTPS)과 로컬 개발은 모두 만족하지만, `navigator.clipboard`가 `undefined`인 환경에서 **예외로 화면이 깨지지 않도록** 반드시 존재 여부를 확인한 뒤 호출
@@ -268,22 +269,23 @@ v1 완료 시점(v1.0.0, 프로덕션 배포 완료) 기준의 실제 상태이�
   - **관련 파일**: `components/admin/copy-link-button.tsx`(신규), `lib/invoice/client-link.ts`(신규), `components/admin/invoice-list-table.tsx`, `app/admin/(protected)/page.tsx`, (B 채택 시) `lib/admin/env.ts`·`.env.example`
   - **관련 기능**: F021
   - **수락 기준**
-    - [ ] 기준 도메인 선택지가 A/B/C 중 하나로 명시적으로 결정되고 근거가 이 문서와 코드 주석 양쪽에 기록됨
-    - [ ] 복사된 문자열이 `{기준도메인}/invoice/{32자 hex id}` 형식과 정확히 일치하고, 실제로 열면 해당 견적서가 조회됨
-    - [ ] 클립보드 API를 사용할 수 없는 환경에서도 화면이 깨지지 않고 URL을 수동 복사할 수 있음
-    - [ ] 행마다 복사 버튼의 접근 가능한 이름이 서로 구분됨
-    - [ ] `npm run lint` / `npm run build` 무경고
+    - [x] 기준 도메인 선택지가 A/B/C 중 하나로 명시적으로 결정되고 근거가 이 문서와 코드 주석 양쪽에 기록됨
+    - [x] 복사된 문자열이 `{기준도메인}/invoice/{32자 hex id}` 형식과 정확히 일치하고, 실제로 열면 해당 견적서가 조회됨
+    - [x] 클립보드 API를 사용할 수 없는 환경에서도 화면이 깨지지 않고 URL을 수동 복사할 수 있음
+    - [x] 행마다 복사 버튼의 접근 가능한 이름이 서로 구분됨
+    - [x] `npm run lint` / `npm run build` 무경고
 
   **테스트 체크리스트 (Playwright MCP)**
-  - [ ] 정상: 복사 버튼 클릭 → `browser_evaluate`의 `navigator.clipboard.readText()`(또는 `writeText` 스파이)로 실제 클립보드 값이 기대 URL과 정확히 일치함을 확인
-  - [ ] 정상: 복사한 URL로 `browser_navigate` → 해당 견적서 조회 페이지가 정상 렌더(엔드투엔드로 링크가 유효함을 증명)
-  - [ ] 정상: 성공 토스트 문구가 노출되고 일정 시간 후 사라짐, 버튼 아이콘이 `Check`로 전환됐다 복귀함
-  - [ ] 실패: `browser_evaluate`로 `navigator.clipboard.writeText`가 reject하도록 스텁 → 오류 토스트 + 수동 복사 폴백이 노출되고, 페이지가 오류 화면으로 이탈하지 않음
-  - [ ] 실패: `navigator.clipboard` 자체를 `undefined`로 만든 상태에서 클릭 → 콘솔 미처리 예외 없이 폴백 경로로 처리됨
-  - [ ] 엣지: 서로 다른 3개 행의 복사 버튼을 연속 클릭 → 마지막 클릭한 행의 URL이 클립보드에 남고, 다른 행의 "복사됨" 상태가 잘못 켜지지 않음
-  - [ ] 엣지: 같은 버튼을 빠르게 5회 연타 → 토스트가 중첩되어도 화면이 깨지지 않고 클립보드 값이 정확함
-  - [ ] 엣지: 375px 모바일 뷰포트(카드 레이아웃)에서도 복사 버튼이 보이고 동작함
-  - [ ] `browser_console_messages`에 에러 0건
+  - [x] 정상: 복사 버튼 클릭 → `browser_evaluate`의 `navigator.clipboard.readText()`(또는 `writeText` 스파이)로 실제 클립보드 값이 기대 URL과 정확히 일치함을 확인
+  - [x] 정상: 복사한 URL로 `browser_navigate` → 해당 견적서 조회 페이지가 정상 렌더(엔드투엔드로 링크가 유효함을 증명)
+  - [x] 정상: 성공 토스트 문구가 노출되고 일정 시간 후 사라짐, 버튼 아이콘이 `Check`로 전환됐다 복귀함
+  - [x] 실패: `browser_evaluate`로 `navigator.clipboard.writeText`가 reject하도록 스텁 → 오류 토스트 + 수동 복사 폴백이 노출되고, 페이지가 오류 화면으로 이탈하지 않음
+  - [x] 실패: `navigator.clipboard` 자체를 `undefined`로 만든 상태에서 클릭 → 콘솔 미처리 예외 없이 폴백 경로로 처리됨
+  - [x] 엣지: 서로 다른 3개 행의 복사 버튼을 연속 클릭 → 마지막 클릭한 행의 URL이 클립보드에 남고, 다른 행의 "복사됨" 상태가 잘못 켜지지 않음
+  - [x] 엣지: 같은 버튼을 빠르게 5회 연타 → 토스트가 중첩되어도 화면이 깨지지 않고 클립보드 값이 정확함
+  - [x] 엣지: 375px 모바일 뷰포트(카드 레이아웃)에서도 복사 버튼이 보이고 동작함
+  - [x] `browser_console_messages`에 에러 0건
+  - **변경 사항 요약**: `lib/invoice/client-link.ts`(`buildInvoiceUrl`), `components/admin/copy-link-button.tsx`(clipboard + Copy/Check 전환 + readOnly input 폴백 + 행별 고유 `aria-label`) 신규 구현, `invoice-list-table.tsx`의 `CopyLinkButtonPlaceholder` 제거하고 실제 컴포넌트로 교체. `lib/admin/env.ts`에 `SITE_URL` 추가(B안 채택), `.env.local`엔 로컬에서도 프로덕션 도메인 사용. `nextjs-app-developer` 서브에이전트로 구현, 제가 clipboard 성공/실패 spot-check, `code-reviewer`로 재검토. **code-reviewer 지적으로 수정**: (1) 복사 상태 타이머가 컴포넌트 언마운트 시 정리되지 않던 누수를 `useEffect` cleanup으로 해결(Task 023/024에서 목록이 재조회되며 행이 언마운트될 수 있어 실질적 위험). (2) `Copy`/`Check` 아이콘에 `aria-hidden="true"` 추가해 `login-form.tsx`의 기존 관례와 통일. (3) `client-link.ts`의 `server-only` 미적용 근거 주석이 실제 호출부(서버 컴포넌트뿐)와 어긋나 있어 정정. `docs/ROADMAP.md` 자체 갱신 누락도 code-reviewer가 지적해 이번에 함께 반영.
 
 ### Phase 8: 접근 제어 및 Notion 실데이터 연동
 
