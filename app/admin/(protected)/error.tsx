@@ -17,13 +17,13 @@ export default function AdminInvoiceListError({
   }, [error])
 
   return (
-    <main className="flex flex-1 items-center justify-center p-6">
+    <div className="flex flex-1 items-center justify-center">
       <div className="flex flex-col items-center gap-4 text-center">
         <p className="text-muted-foreground text-sm">목록을 불러오지 못했습니다</p>
         <Button variant="outline" onClick={() => unstable_retry()}>
           다시 시도
         </Button>
       </div>
-    </main>
+    </div>
   )
 }

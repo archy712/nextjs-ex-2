@@ -203,7 +203,7 @@ v1 완료 시점(v1.0.0, 프로덕션 배포 완료) 기준의 실제 상태이�
 
 > 이 Phase는 **Notion 호출 없이** `lib/invoice/fixtures.ts` 기반 더미 데이터로 화면을 완성합니다. 실제 인증과 실제 데이터 연결은 Phase 8입니다. **Phase 7 산출물은 절대 `main`에 병합하지 않습니다**(배포 안전 규칙).
 
-- **Task 019: 관리자 셸 및 로그인 화면 UI 구현**
+- **Task 019: 관리자 셸 및 로그인 화면 UI 구현** ✅
 
   - shadcn MCP/CLI로 `input` 추가(필요 시 `label`도) — **`components/ui/*`는 생성 코드로 취급하고 직접 수정하지 않음**
   - `components/admin/admin-shell.tsx` — 관리자 공통 셸. 상단 헤더에 서비스명 + "견적서 목록" 제목 + 로그아웃 버튼 자리(동작은 Task 022). 클라이언트 조회 페이지와 달리 **여기에는 헤더가 존재**하며, `/invoice/[id]`의 레이아웃에는 영향을 주지 않음을 확인
@@ -216,11 +216,12 @@ v1 완료 시점(v1.0.0, 프로덕션 배포 완료) 기준의 실제 상태이�
   - **관련 파일**: `components/admin/admin-shell.tsx`(신규), `components/admin/login-form.tsx`(신규), `components/ui/input.tsx`(shadcn 생성), `app/admin/login/page.tsx`, `app/admin/(protected)/layout.tsx`
   - **관련 기능**: F022(로그인 화면), F024(셸 반응형)
   - **수락 기준**
-    - [ ] 로그인 화면이 375 / 768 / 1280px에서 레이아웃 깨짐 없이 렌더되고, 라이트·다크 모두 대비가 충분함
-    - [ ] 키보드만으로 비밀번호 입력 → 제출까지 도달 가능하고 포커스 링이 보임
-    - [ ] 비밀번호 입력값이 화면에 평문으로 노출되지 않음(`type="password"`)
-    - [ ] `npm run lint` / `npm run build` 무경고
-    - [ ] `/invoice/[id]` 화면에 시각적 회귀가 없음(관리자 셸이 전역 레이아웃을 오염시키지 않음)
+    - [x] 로그인 화면이 375 / 768 / 1280px에서 레이아웃 깨짐 없이 렌더되고, 라이트·다크 모두 대비가 충분함
+    - [x] 키보드만으로 비밀번호 입력 → 제출까지 도달 가능하고 포커스 링이 보임
+    - [x] 비밀번호 입력값이 화면에 평문으로 노출되지 않음(`type="password"`)
+    - [x] `npm run lint` / `npm run build` 무경고
+    - [x] `/invoice/[id]` 화면에 시각적 회귀가 없음(관리자 셸이 전역 레이아웃을 오염시키지 않음)
+  - **변경 사항 요약**: shadcn으로 `input`/`label` 추가, `AdminShell`(헤더+로그아웃 버튼 자리)과 `LoginForm`(`useActionState` + no-op 스텁 액션, 하드코딩된 단일 실패 문구) 구현, `app/admin/login/page.tsx`·`app/admin/(protected)/layout.tsx`에 연결. Playwright로 375/768/1280px·라이트/다크 스크린샷, 키보드 포커스 링, `type="password"` 마스킹, 제출 후 콘솔 에러 0건, `/invoice/[id]`·`/admin` 회귀 없음을 확인. **code-reviewer 지적으로 수정**: `AdminShell`이 자체 `<main>`을 가지면서 `(protected)/page.tsx`·`loading.tsx`·`error.tsx`도 각자 `<main>`을 갖고 있어 `<main>` 랜드마크가 중복 렌더되던 문제를 발견 — 세 파일을 `<div>`로 변경해 `<main>`을 문서당 1개로 유지. 로딩 스피너에 `aria-hidden` 추가.
 
 - **Task 020: 견적서 목록 화면 UI 구현 (더미 데이터)**
 
