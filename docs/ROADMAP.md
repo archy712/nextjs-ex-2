@@ -384,22 +384,23 @@ v1 완료 시점(v1.0.0, 프로덕션 배포 완료) 기준의 실제 상태이�
   - **관련 파일**: `app/admin/(protected)/page.tsx`, `app/admin/(protected)/loading.tsx`, `components/admin/invoice-list-table.tsx`, `components/admin/copy-link-button.tsx`, `components/invoice/invoice-error-state.tsx`(재사용)
   - **관련 기능**: F020, F021(실 id 연결), F023
   - **수락 기준**
-    - [ ] 실제 Notion 견적서 전건이 화면에 표시되고 값이 Notion과 일치함
-    - [ ] Notion 장애 시 목록 자리에 503 안내가 표시되고, 재시도로 복구 가능함
-    - [ ] 견적서 0건일 때 오류가 아닌 빈 상태 안내가 표시됨
-    - [ ] 서버 로그에 토큰·클라이언트명·스택 전문이 남지 않음
-    - [ ] `npx tsc --noEmit` / `npm run lint` / `npm run build` 무경고
+    - [x] 실제 Notion 견적서 전건이 화면에 표시되고 값이 Notion과 일치함
+    - [x] Notion 장애 시 목록 자리에 503 안내가 표시되고, 재시도로 복구 가능함
+    - [x] 견적서 0건일 때 오류가 아닌 빈 상태 안내가 표시됨
+    - [x] 서버 로그에 토큰·클라이언트명·스택 전문이 남지 않음
+    - [x] `npx tsc --noEmit` / `npm run lint` / `npm run build` 무경고
 
   **테스트 체크리스트 (Playwright MCP)**
-  - [ ] 정상: 로그인 → 목록에 실제 견적서가 렌더되고, 각 행의 값이 Notion 데이터와 일치
-  - [ ] 정상: 목록에서 복사한 링크로 이동 → 해당 견적서 조회 페이지가 정상 렌더(관리자 → 클라이언트 경로 연결 확인)
-  - [ ] 정상: Notion에서 견적서를 1건 추가/수정한 뒤 목록을 새로고침 → 결정한 캐싱 전략대로 반영됨(즉시 반영 또는 기록한 지연 내 반영). 검증에 사용한 데이터는 원복
-  - [ ] 실패: `NOTION_API_KEY` 무효화(검증 후 원복) → 목록 자리에 503 안내, 404 아님. HTML·콘솔에 토큰·스택 미노출(**프로덕션 빌드 기준으로 확인** — `next dev`는 서버 로그를 브라우저 콘솔로 미러링하므로 판정 근거로 쓰지 않음)
-  - [ ] 실패: 503 상태에서 "다시 시도" 클릭 → `browser_network_requests`로 실제 재요청 발생 확인, 복구 후 정상 목록으로 전환
-  - [ ] 엣지: 견적서 0건 → 빈 상태 안내 표시(오류 화면 아님)
-  - [ ] 엣지: 인위적 지연을 임시 주입(검증 후 원복)해 `loading.tsx` 스켈레톤이 표시된 뒤 목록으로 전환됨을 확인
-  - [ ] 엣지: 목록을 연속 3회 새로고침해도 결과가 일관되고 중복 요청이 발생하지 않음
-  - [ ] `browser_console_messages`에 에러 0건(라이트/다크 모두)
+  - [x] 정상: 로그인 → 목록에 실제 견적서가 렌더되고, 각 행의 값이 Notion 데이터와 일치
+  - [x] 정상: 목록에서 복사한 링크로 이동 → 해당 견적서 조회 페이지가 정상 렌더(관리자 → 클라이언트 경로 연결 확인)
+  - [x] 정상: Notion에서 견적서를 1건 추가/수정한 뒤 목록을 새로고침 → 결정한 캐싱 전략대로 반영됨(즉시 반영 또는 기록한 지연 내 반영). 검증에 사용한 데이터는 원복
+  - [x] 실패: `NOTION_API_KEY` 무효화(검증 후 원복) → 목록 자리에 503 안내, 404 아님. HTML·콘솔에 토큰·스택 미노출(**프로덕션 빌드 기준으로 확인** — `next dev`는 서버 로그를 브라우저 콘솔로 미러링하므로 판정 근거로 쓰지 않음)
+  - [x] 실패: 503 상태에서 "다시 시도" 클릭 → `browser_network_requests`로 실제 재요청 발생 확인, 복구 후 정상 목록으로 전환
+  - [x] 엣지: 견적서 0건 → 빈 상태 안내 표시(오류 화면 아님)
+  - [x] 엣지: 인위적 지연을 임시 주입(검증 후 원복)해 `loading.tsx` 스켈레톤이 표시된 뒤 목록으로 전환됨을 확인
+  - [x] 엣지: 목록을 연속 3회 새로고침해도 결과가 일관되고 중복 요청이 발생하지 않음
+  - [x] `browser_console_messages`에 에러 0건(라이트/다크 모두)
+  - **변경 사항 요약**: `app/admin/(protected)/page.tsx`에서 `invoiceSummaryFixtures`(더미)를 제거하고 `listInvoices()`(Task 023)로 교체. 오류 처리는 v1 `app/invoice/[id]/page.tsx`와 동일한 패턴 — `InvoiceUnavailableError`만 잡아 `InvoiceErrorState variant="unavailable"` + `InvoiceRetryButton`을 렌더하고 그 외 예외는 다시 throw해 `error.tsx`(Task 018)로 흘러가게 둠. 관리자 목록에는 "존재하지 않는 견적서" 개념이 없어 404 분기는 만들지 않았고, 빈 배열은 `AdminEmptyState`로 처리(기존 컴포넌트 재사용, 신규 컴포넌트 없음). 로깅은 `console.error("admin_invoice_list_failed", { errorName, notionCode })`로 v1 Task 014 형식과 동일하게 구조화(클라이언트명·토큰·스택 미노출). 실제 Notion 워크스페이스(3건)로 로그인→목록→링크 복사→`/invoice/[id]` 이동까지 종단 검증, `NOTION_API_KEY` 무효화(개발/프로덕션 빌드 양쪽) → 503 표시 + 재시도 시 실제 재요청(`/admin?_rsc=...`) 확인 후 정상 복구, 존재할 수 없는 필터로 0건 케이스 확인, 브라우저 스트리밍 `fetch().body.getReader()`로 응답 첫 청크에 `loading.tsx` 스켈레톤(`role="status"`)이 데이터보다 먼저 도착함을 실측, 375px/1280px·라이트/다크 스크린샷 확인(콘솔 에러 0건), 로그아웃→재로그인 후 목록 재조회 정상, 연속 3회 새로고침 결과 일관, 실제 견적서 1건의 `client_name`을 임시로 수정한 뒤 새로고침 시 "use cache" 미사용 결정대로 즉시 반영됨을 확인(검증 후 원복). 프로덕션 빌드(`next build && next start`) 기준 `.next/static` 전체를 grep해 `ADMIN_PASSWORD`/`ADMIN_SESSION_SECRET`/`NOTION_API_KEY` 값이 클라이언트 번들에 없음을 확인. 임시 코드(인위적 지연, 0건 필터, 디버그 라우트)와 `.env.local` 임시 변경은 전부 검증 후 원복/삭제(`git status`로 잔여물 없음 확인). **code-reviewer 리뷰 결과**: Critical/Warning 없음 — `error.cause instanceof Error` 좁히기(v1과 동일 패턴) 안전성, 환경변수 검증 실패(`lib/notion/invoices-env.ts` 등)가 모듈 평가 시점 throw로 `page.tsx`의 try/catch 밖에서 발생해도 `error.tsx`(Task 018)로 정확히 전파됨을 확인, 디버그 잔여 코드 없음을 모두 검증받음(Suggestion 2건은 "현재 동작이 의도된 것이면 조치 불필요"로 판단해 코드 변경 없음).
 
 - **Task 025: 관리자 플로우 통합 테스트**
 
