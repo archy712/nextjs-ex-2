@@ -1,20 +1,32 @@
-# 노션 기반 견적서 관리 시스템 개발 로드맵
+# 노션 기반 견적서 관리 시스템 고도화 로드맵 (v2)
 
-Notion에 입력된 견적서를 클라이언트가 로그인 없이 링크만으로 조회하고 PDF로 저장할 수 있게 하는 무인증 공개 조회 서비스.
+발행자가 Notion을 열지 않고도 웹에서 전체 견적서 목록을 확인하고, 클라이언트에게 보낼 조회 링크를 한 번의 클릭으로 복사할 수 있게 하는 **관리자 영역**을 추가한다.
+
+> **이 문서는 v1(MVP) 이후의 고도화 로드맵입니다.**
+> v1(Phase 0~5 / Task 000~015)은 `docs/ROADMAP_v1.md`에 기록되어 있으며 **전 Task 완료 + v1.0.0 릴리스 + Vercel 프로덕션 배포까지 끝난 상태**입니다. 이 문서는 그 뒤를 잇는 v2 고도화 단계(Phase 6~9 / Task 016~027)만 다룹니다. v1에서 확정된 기술 결정 사항은 이 문서에서도 그대로 유효하며(문서 하단 "핵심 기술 결정 사항" 참고), 이미 완료된 v1 Task는 여기에 다시 나열하지 않습니다.
+
+> ⚠️ **전제 변경 공지 — 이 고도화 단계부터 관리자 영역에 한해 비밀번호 인증이 추가됩니다.**
+> v1의 `docs/PRD.md`는 "완전 무인증 공개 접근 서비스"를 전제로 작성되었습니다. v2에서 신설되는 `/admin` 영역은 **단일 비밀번호 게이트**로 보호되므로 이 전제와 충돌합니다. 단, **클라이언트가 사용하는 견적서 조회 페이지(`/invoice/[id]`)는 v1과 동일하게 완전 무인증으로 유지**되며 어떤 변경도 가하지 않습니다. PRD 본문 갱신은 Task 016에서 처리합니다.
+
+---
 
 ## 개요
 
-**노션 기반 견적서 관리 시스템**은 Notion으로 견적서를 작성하는 1인 사업자/소규모 팀과 링크를 받아 견적서를 확인하는 클라이언트를 위한 **단일 목적 공개 조회 서비스**로 다음 기능을 제공합니다:
+**v2 고도화**는 견적서를 발행하는 **1인 사업자(운영자 본인)**를 위한 내부 도구를 추가합니다. 지금까지 발행자는 링크를 얻으려면 Notion을 직접 열어 `invoice_url` 포뮬러 셀을 복사해야 했습니다. v2는 이 작업을 웹에서 끝낼 수 있게 합니다.
 
-- **Notion 데이터 조회 (F001)**: Notion API로 견적서 1건과 연결된 항목 목록을 조회 — Notion이 유일한 데이터 소스이며 읽기 전용
-- **견적서 내용 표시 (F002)**: 클라이언트명, 유효기간, 항목별 수량/단가/금액, 합계 금액 렌더링
-- **PDF 다운로드 (F003)**: `window.print()` + `@media print` 인쇄 전용 스타일로 화면을 그대로 PDF 저장
-- **오류 안내 (F010~F012)**: ID 형식 검증 → 404(미존재) / 503(Notion 장애)을 구분해 안내
-- **반응형 레이아웃 (F013)**: 모바일/태블릿/데스크톱 어느 기기에서도 동일하게 확인 가능
+- **관리자 견적서 목록 (F020)**: Notion Invoices 데이터베이스의 모든 견적서를 조회해 견적서 번호·클라이언트명·유효기간·합계 금액을 목록으로 표시
+- **클라이언트 링크 복사 (F021)**: 목록의 각 행에서 해당 견적서의 클라이언트 조회 링크(`/invoice/[id]`)를 클립보드로 복사
+- **관리자 비밀번호 게이트 (F022)**: 서버 전용 환경변수의 단일 비밀번호로 `/admin` 영역 보호(로그인/로그아웃/세션 쿠키)
+- **관리자 영역 오류·빈 상태 안내 (F023)**: Notion 장애(503)·견적서 0건·로그인 실패를 구분해 안내
+- **관리자 영역 반응형 레이아웃 (F024)**: 모바일/태블릿/데스크톱 대응 — 운영자가 휴대폰에서도 링크를 복사할 수 있어야 함
 
-**범위 밖(MVP 제외)**: 로그인/회원가입, 관리자 대시보드, 견적서 상태 워크플로우, 이메일·카카오톡 자동 발송, 링크 만료·비밀번호 보호, 부가세·할인 계산, 다국어, 템플릿 커스터마이징. 로드맵에 이런 Task를 추가하지 않습니다.
+### 범위 밖 (이번에도 추가하지 않음)
 
-**페이지는 단 2개**: 견적서 조회 페이지(`/invoice/[id]`), 오류 페이지(404/503 — 사용자가 직접 이동하지 않고 조건 충족 시 자동 표시).
+정식 회원가입·다중 사용자·Supabase Auth 등 세션 관리 시스템, 견적서 상태 워크플로우(승인/거절/대기), 이메일·카카오톡 자동 발송, 견적서 생성·수정·삭제(쓰기 작업 — Notion은 계속 **읽기 전용**), 목록 검색·필터·정렬 UI, 통계/대시보드 차트, 링크 만료·개별 견적서 비밀번호, 다국어. **PRD와 사용자 요청에 없는 기능은 로드맵에 추가하지 않습니다.**
+
+### 목표 수준 (과설계 금지)
+
+이 관리자 영역은 **"1인 사업자가 혼자 쓰는 내부 도구"** 수준을 목표로 합니다. 사용자 테이블, 권한 등급, 리프레시 토큰, 감사 로그, rate limiter 미들웨어 같은 요소는 도입하지 않습니다. 판단이 애매하면 **더 단순한 쪽**을 선택하고 그 근거를 Task에 기록합니다.
 
 ---
 
@@ -22,14 +34,14 @@ Notion에 입력된 견적서를 클라이언트가 로그인 없이 링크만�
 
 | 기능 ID | 기능명 | 담당 Task | 상태 |
 |---|---|---|---|
-| **F001** | Notion 데이터 조회 | Task 003(클라이언트 설정) ✅, Task 008(조회 계층) ✅, Task 009(페이지 연결) ✅ | 완료 |
-| **F002** | 견적서 내용 표시 | Task 004(UI) ✅, Task 006(반응형 표현) ✅, Task 009(실데이터 연결) ✅ | 완료 |
-| **F003** | PDF 다운로드(인쇄) | Task 004(버튼 UI) ✅, Task 012(인쇄 구현) ✅, Task 013(인쇄 품질 검증) ✅ | 완료 |
-| **F010** | 견적서 ID 형식 검증 | Task 002(Zod 스키마) ✅, Task 007(검증 로직·조기 차단) ✅ | 완료 |
-| **F011** | 존재하지 않는 견적서 안내(404) | Task 005(오류 UI) ✅, Task 010(분기 처리) ✅ | 완료 |
-| **F012** | 서비스 장애 안내(503) | Task 005(오류 UI) ✅, Task 010(분기 처리) ✅ | 완료 |
-| **F013** | 반응형 레이아웃 | Task 001(레이아웃 골격) ✅, Task 006(반응형 완성) ✅, Task 013(다기기 회귀 검증) ✅ | 완료 |
-| **전체 플로우** | 통합 검증 | Task 011(핵심 플로우 통합 테스트) ✅, Task 015(프로덕션 스모크) ✅ | 완료 |
+| **F020** | 관리자 견적서 목록 조회 | Task 017(타입 계약) ✅, Task 020(목록 UI) ✅, Task 023(조회 계층) ✅, Task 024(실데이터 연결) ✅ | 완료 |
+| **F021** | 클라이언트 조회 링크 복사 | Task 021(복사 기능) ✅, Task 026(접근성 회귀) ✅ | 완료 |
+| **F022** | 관리자 비밀번호 게이트 | Task 017(환경변수 계약) ✅, Task 019(로그인 화면 UI) ✅, Task 022(게이트 구현) ✅ | 완료 |
+| **F023** | 관리자 오류·빈 상태 안내 | Task 018(오류 라우트 골격) ✅, Task 020(빈 상태 UI) ✅, Task 024(오류 분기) ✅ | 완료 |
+| **F024** | 관리자 영역 반응형 레이아웃 | Task 018(레이아웃 골격) ✅, Task 019(셸 구현) ✅, Task 020(목록 반응형) ✅, Task 026(회귀 검증) ✅ | 완료 |
+| **문서 정합성** | PRD 전제 갱신 | Task 016 ✅ | 완료 |
+| **전체 플로우** | 통합 검증 · 배포 | Task 025(관리자 플로우 통합 테스트) ✅, Task 027(배포·문서 갱신) | 진행 중 |
+| **F001~F013** | v1 클라이언트 조회 기능 | `docs/ROADMAP_v1.md` 참조 — **v2에서 회귀만 검증**(Task 025, Task 026) | 완료(v1) |
 
 > Task를 완료(✅)로 표시할 때 이 표의 상태도 함께 갱신합니다.
 
@@ -45,7 +57,7 @@ Notion에 입력된 견적서를 클라이언트가 로그인 없이 링크만�
 2. **작업 생성**
    - 기존 코드베이스를 학습하고 현재 상태를 파악
    - 고수준 명세서, 관련 파일, 수락 기준, 구현 단계 포함
-   - **API/비즈니스 로직 작업은 "## 테스트 체크리스트" 섹션을 필수로 포함** (Playwright MCP 시나리오를 정상·실패·엣지로 구분해 작성)
+   - **API/비즈니스 로직 작업은 "테스트 체크리스트" 섹션을 필수로 포함**(Playwright MCP 시나리오를 정상·실패·엣지로 구분해 작성)
    - 새 작업 문서에는 빈 체크박스만 두고 변경 사항 요약은 비워 둠
 
 3. **작업 구현**
@@ -53,283 +65,464 @@ Notion에 입력된 견적서를 클라이언트가 로그인 없이 링크만�
    - **API 연동 및 비즈니스 로직은 "구현 → 테스트 통과"가 하나의 완료 기준** — 테스트를 생략한 구현은 미완료로 간주
    - 구현 완료 직후 Playwright MCP로 E2E 테스트 실행(정상/실패/엣지 전부), 필요 시 `browser_network_requests`·`browser_console_messages`로 실제 요청·응답·에러를 직접 확인
    - 테스트를 통과한 경우에만 다음 단계로 진행. **실패 시 다음 Task로 넘어가지 않고** 해당 Task로 돌아가 원인을 수정한 뒤 재검증
+   - 구현/수정 직후 `code-reviewer` 서브에이전트로 리뷰를 받고 지적 사항을 반영
    - 각 단계 완료 후 중단하고 추가 지시를 기다림
 
 4. **로드맵 업데이트**
    - 로드맵에서 완료된 작업을 ✅로 표시하고, 어떤 테스트 시나리오가 통과했는지 한 줄 요약을 남김
    - 추적 매트릭스의 기능 ID 상태도 동기화
 
+### 🚨 이번 단계의 배포 안전 규칙 (반드시 준수)
+
+v1 Task 015에서 **Vercel Git 연동이 이미 활성화되어 `main` 브랜치에 push하면 자동으로 프로덕션 배포**됩니다. Phase 7(관리자 UI)은 비밀번호 게이트(Task 022)보다 먼저 진행되므로, **그 사이에 `/admin` 라우트를 `main`에 push하면 인증 없는 관리자 화면이 프로덕션에 노출됩니다.**
+
+- v2 작업은 **전용 브랜치**(예: `feat/admin-invoice-list`)에서 진행하고, `main` 병합은 **Task 022(비밀번호 게이트) 완료 이후**에만 수행
+- 부득이하게 Task 022 이전에 병합해야 한다면, `proxy.ts`에서 `/admin` 전체를 404/리다이렉트로 막는 임시 차단을 먼저 넣을 것
+- Task 027 배포 점검 시 프로덕션 `/admin`이 **로그인 없이는 목록 데이터를 절대 반환하지 않음**을 실제 URL로 재확인
+
 ---
 
 ## 현재 코드베이스 기준선
 
-Phase 0(초기화)까지는 이미 완료된 상태이며, 아래 자산을 그대로 재사용합니다.
+v1 완료 시점(v1.0.0, 프로덕션 배포 완료) 기준의 실제 상태이며, v2는 아래 자산을 그대로 재사용합니다.
 
 | 구분 | 현재 상태 |
 |---|---|
 | 프레임워크 | Next.js 16.2.12 (App Router, Turbopack), React 19.2.4, TypeScript 5.9 |
-| 스타일 | TailwindCSS v4 CSS-first(`app/globals.css`의 `@theme inline`), light/dark `oklch` 토큰 정의됨 (**인쇄 스타일은 아직 없음**) |
-| UI 프리미티브 | `components/ui/`에 `table`, `card`, `badge`, `skeleton`, `alert`, `button`, `tooltip`, `sonner` 보유 (대시보드/마케팅용 컴포넌트는 제거 완료) |
-| 레이아웃 | `app/layout.tsx` — `ThemeProvider`/`TooltipProvider`/`Toaster`, `lang="ko"`, 한국어 metadata 설정 완료 |
-| 라우트 | `app/page.tsx`(링크 접속 안내 페이지)만 존재. **`/invoice/[id]`·오류 페이지 미구현** |
-| 훅 | `hooks/use-mobile.ts`(SSR-safe), `hooks/use-breakpoint.ts` |
-| 설정 | `next.config.ts`에 **`cacheComponents: true` 활성화됨** (데이터 페칭 기본 dynamic + PPR 기본 동작) |
-| 미설치 | **`@notionhq/client` 미설치**, `NOTION_*` 환경변수 미설정(`.env.local`엔 무관한 키만 존재), `types/` 및 `lib/notion/` 디렉터리 없음 |
+| 설정 | `next.config.ts`에 `cacheComponents: true`만 설정(데이터 페칭 기본 dynamic + PPR 기본 동작). `experimental` 플래그 없음 |
+| 라우트 | `app/page.tsx`(링크 접속 안내), `app/invoice/[id]/{page,loading,error,not-found}.tsx`, `app/not-found.tsx`. **`app/admin/*` 없음, 루트에 `proxy.ts`/`middleware.ts` 없음** |
+| 레이아웃 | `app/layout.tsx` — `ThemeProvider`(`next-themes`, class 전략)/`TooltipProvider`/`Toaster`(sonner), `lang="ko"`, `title.template = "%s – 견적서 조회"` |
+| 도메인 타입 | `types/invoice.ts` — `Invoice { id, invoiceNumber, clientName, validUntil: Date \| null, items, totalAmount }`, `InvoiceItem`. **목록용 요약 타입 없음** |
+| 검증 | `lib/invoice/schema.ts` — `invoiceIdSchema`(32자 hex / 하이픈 UUID), `notionInvoicePageSchema`, `notionItemPageSchema`(**목록 조회에 그대로 재사용 가능**) |
+| 포맷 | `lib/invoice/format.ts` — `formatCurrency`(`Intl.NumberFormat("ko-KR")`), `formatDate`(`date-fns format("yyyy.MM.dd")`), `lib/invoice/status.ts` — `isInvoiceExpired`, `lib/invoice/normalize-id.ts` — `normalizeInvoiceId` |
+| Notion 연동 | `lib/notion/client.ts`(싱글턴, `Notion-Version: 2025-09-03`, `timeoutMs: 5000`, `retry.maxRetries: 1`), `lib/notion/env.ts`(Zod 검증), `lib/notion/property-names.ts`(**매핑의 유일한 진실 공급원**), `lib/notion/invoice-repository.ts`(`getInvoiceById` — 단건 조회 전용, 상단에 "`use cache` 미사용" 결정 주석) |
+| 환경변수 | `NOTION_API_KEY`, `NOTION_ITEMS_DATA_SOURCE_ID` 2개뿐(`.env.example`/Vercel Production·Preview 등록 완료). **Invoices 데이터소스 ID·관리자 비밀번호 관련 변수 없음** |
+| UI 프리미티브 | `components/ui/`에 `alert`, `badge`, `button`, `card`, `skeleton`, `sonner`, `table`, `tooltip`. **`input`/`label` 등 폼 프리미티브 없음** |
+| 도메인 컴포넌트 | `components/invoice/` — `invoice-header`, `invoice-items-table`(md 경계 CSS 분기 + `print:`), `invoice-total`, `download-button`, `invoice-error-state`(`variant: "not-found" \| "unavailable"`), `invoice-retry-button` |
+| 더미 데이터 | `lib/invoice/fixtures.ts` — 단건 견적서 4종(0/3/32개 항목, 만료). **목록용 더미 없음** |
+| 스타일 | Tailwind v4 CSS-first(`app/globals.css`), light/dark `oklch` 토큰 + `@media print` 블록(`html { color-scheme: light !important }` 포함) |
+| 훅 | `hooks/use-mobile.ts`(SSR-safe `useSyncExternalStore`), `hooks/use-breakpoint.ts`(`{ initializeWithValue: false }` 필수) |
+| 폼 관련 패키지 | `react-hook-form`, `@hookform/resolvers`, `zod` 설치됨 — **지금까지 사용자 입력 폼이 없어 미사용 상태**(로그인 폼이 이 저장소 최초의 입력 폼) |
 | 테스트 | 테스트 러너 없음 — 검증은 **Playwright MCP**로 수행 |
+| 배포 | Vercel 프로덕션 운영 중(`https://nextjs-ex-2-rosy.vercel.app`), `main` push 시 자동 배포. Notion Invoices DB에 `invoice_url` FORMULA 속성 존재(`"https://nextjs-ex-2-rosy.vercel.app/invoice/" + id()`) |
+
+---
+
+## v2 선결 기술 조사 결과 (구현 전 반드시 인지)
+
+아래 항목은 로드맵 작성 시 `node_modules/next/dist/docs/`의 실제 문서와 현재 코드로 직접 확인한 사실입니다. 학습 데이터의 기억과 다를 수 있으므로 구현 전에 반드시 이 내용을 기준으로 삼으세요.
+
+1. **`middleware.ts`는 Next.js 16에서 `proxy.ts`로 이름이 바뀌었습니다.** 프로젝트 루트(`app/`과 같은 레벨)에 `proxy.ts`를 만들고 `export function proxy(request: NextRequest)`(또는 default export) + `export const config = { matcher: ... }` 형태로 작성합니다. `middleware.ts`를 만들면 안 됩니다.
+2. **Proxy는 Next.js 16부터 Node.js 런타임이 기본이며, `runtime` 세그먼트 설정을 지정하면 오류가 납니다.** 따라서 Edge 런타임 제약(예: `node:crypto` 미사용) 때문에 우회 설계를 할 필요가 없습니다. 다만 Next 공식 가이드는 여전히 proxy를 **"낙관적 검사(optimistic check)"** 용도로만 쓰고 **전체 세션 관리/인가 솔루션으로 삼지 말 것**을 권고하므로, v2도 이 권고를 따릅니다(아래 4번).
+3. **Notion 항목 조회는 이미 data source 단위 쿼리**(`notion.dataSources.query`)로 구현돼 있으나, 현재 환경변수에는 **Items 데이터소스 ID만** 있습니다. 견적서 목록을 조회하려면 **Invoices 데이터소스 ID 환경변수를 새로 추가**해야 합니다(데이터베이스 ID가 아니라 **데이터소스 ID** — v1 Task 003에서 이 둘을 혼동해 실패한 전례가 있음).
+4. **인가 판정의 진실 공급원은 서버 컴포넌트 쪽 DAL**로 둡니다. `proxy.ts`는 세션 쿠키 **존재 여부만** 보고 `/admin/login`으로 리다이렉트하는 빠른 1차 관문이고, 서명 검증 등 실제 판정은 `lib/admin/session.ts`(`import "server-only"`)에서 수행해 관리자 레이아웃이 호출합니다.
+5. **`cacheComponents: true` 환경에서 `cookies()` 같은 동적 API를 읽는 세그먼트는 정적 셸과 분리**되어야 합니다. `/invoice/[id]`가 `loading.tsx`로 이 문제를 해결했듯, 관리자 라우트에도 `loading.tsx`(또는 명시적 `Suspense`)를 반드시 배치하고 빌드(`npm run build`)로 prerender 오류가 없음을 확인합니다.
+6. **관리자 목록에서 `total_amount`(Rollup Sum)를 그대로 표시할지**는 Task 023에서 결정합니다. v1 단건 조회는 rollup 값을 항목 합계와 교차 검증했지만, 목록에서 견적서마다 항목을 재조회하면 N+1 호출이 발생합니다(견적서 20건 → Notion 21회 호출).
+7. **`components/ui/*`에 폼 프리미티브가 없습니다.** 로그인 폼에 필요한 `input`(및 필요 시 `label`)은 **shadcn MCP/CLI로 추가**하고, 생성된 파일은 손으로 고치지 않습니다.
 
 ---
 
 ## 개발 단계
 
-### Phase 0: 프로젝트 초기화 및 스타터킷 정리 ✅
+### Phase 6: 관리자 영역 기반 구축 (문서 · 계약 · 골격)
 
-- **Task 000: 스타터킷 정리 및 프로젝트 기반 확정** ✅ - 완료
-  - ✅ 마케팅 랜딩/대시보드 쇼케이스 라우트 및 `Header`/`Footer`/`AppSidebar`/`DashboardTopbar` 제거
-  - ✅ MVP 범위 밖 shadcn 컴포넌트(`sidebar`, `chart`, 폼 계열 등) 제거, 필요한 `table`/`card`/`badge`/`skeleton`/`alert` 유지
-  - ✅ `app/layout.tsx` 전역 프로바이더 및 한국어 metadata 구성
-  - ✅ 링크 접속 안내용 루트 페이지(`app/page.tsx`) 작성
-  - ✅ 무인증 구조 기준 `docs/PRD.md` 재작성
+- **Task 016: PRD 갱신 — 관리자 영역 및 비밀번호 게이트 전제 반영** ✅
 
-### Phase 1: 애플리케이션 골격 및 데이터 계약 구축 ✅
+  현재 `docs/PRD.md`는 "완전 무인증 공개 접근 서비스"를 반복해 명시하고, "발행자용 로그인, 관리자 대시보드(견적서 목록)"를 **MVP 이후 제외 기능**으로 못 박고 있습니다. v2 구현을 시작하기 전에 이 전제를 정정하지 않으면 이후 모든 Task가 PRD와 모순된 상태로 진행됩니다. **코드 변경 없는 문서 전용 Task**입니다.
 
-- **Task 001: 라우트 골격 및 페이지 스켈레톤 생성** ✅ - 완료
-  - ✅ `app/invoice/[id]/page.tsx` 생성 — `params: Promise<{ id: string }>`를 `await`하는 async 서버 컴포넌트로 작성
-  - ✅ `app/invoice/[id]/loading.tsx`, `app/invoice/[id]/not-found.tsx`, `app/invoice/[id]/error.tsx`(`'use client'` + `unstable_retry`) 빈 껍데기 생성
-  - ✅ `app/not-found.tsx` 전역 404 껍데기 생성
-  - ✅ 디렉터리 구조 확정: `types/`, `lib/notion/`, `lib/invoice/`, `components/invoice/`(추후 Task에서 채움)
-  - ✅ 조회 페이지 컨테이너 레이아웃 골격 작성 (헤더/내비게이션 없음)
-  - **관련 기능**: F013(레이아웃 골격), F001·F002·F003의 배치 지점 확보
-  - **검증 요약**: `/invoice/[id]` 접속 시 페이지 렌더 확인, `npm run build`·`npm run lint` 경고 없이 통과
+  - `docs/PRD.md`의 "🎯 핵심 정보" 사용자 정의에 **운영자(발행자)가 앱 화면을 사용하는 경우**가 생겼음을 반영
+  - "🚶 사용자 여정"에 **발행자 여정 v2**를 추가 — 관리자 로그인 → 목록 확인 → 링크 복사 → 클라이언트에게 전달(기존 "Notion에서 포뮬러 셀 복사" 경로는 대안으로 유지)
+  - "⚡ 기능 명세"에 v2 기능 표를 신설하고 **F020~F024**를 정의(이 로드맵의 정의와 문구를 일치시킬 것)
+  - "3. MVP 이후 기능 (제외)" 목록에서 "발행자용 로그인/회원가입, 관리자 대시보드(견적서 목록/통계)" 항목을 **"통계는 계속 제외, 목록·단일 비밀번호 게이트는 v2에서 도입"**으로 정정
+  - "📱 메뉴 구조"에 `/admin`(견적서 목록), `/admin/login` 추가하고, **`/invoice/[id]`는 계속 완전 무인증**임을 명시적으로 유지
+  - "📄 페이지별 상세 기능"에 관리자 목록 페이지·로그인 페이지 절 추가(역할/진입 경로/사용자 행동/주요 기능/다음 이동 형식 유지)
+  - "🛠️ 기술 스택"에 인증 방식을 한 줄로 명시 — **"서버 전용 환경변수 단일 비밀번호 + 서명된 HttpOnly 쿠키 세션(정식 인증 라이브러리·Supabase Auth 미도입)"**
+  - "🗄️ 데이터 모델"은 **변경 없음**(쓰기 없음, 사용자 테이블 없음) — 변경 불필요임을 확인만 하고 손대지 않음
+  - 문서 하단 "✅ 정합성 검증 결과"를 F020~F024 포함 기준으로 다시 계산해 갱신
 
-- **Task 002: 도메인 타입 및 Zod 스키마 정의** ✅ - 완료
-  - ✅ `types/invoice.ts` — `Invoice { id, invoiceNumber, clientName, validUntil, items, totalAmount }`, `InvoiceItem { id, description, quantity, unitPrice, amount }`
-  - ✅ `lib/invoice/schema.ts` — `invoiceIdSchema`(32자 hex 또는 하이픈 UUID), `notionInvoicePageSchema`, `notionItemPageSchema`(Notion `title`/`rich_text`/`date`/`number`/`formula`/`rollup`/`relation` 속성 타입 매핑)
-  - ✅ `lib/invoice/format.ts` — `formatCurrency`(`Intl.NumberFormat("ko-KR")`), `formatDate`(`date-fns` `format()`, 로케일 고정)
-  - ✅ `lib/invoice/fixtures.ts` — 항목 0개/3개/32개/유효기간 만료 케이스 포함 더미 데이터 4종
-  - **관련 기능**: F010(ID 스키마), F001·F002(응답 매핑 계약)
-  - **검증 요약**: 코드 리뷰에서 `z.uuid()`의 RFC4122 강제 검증이 실제 Notion 페이지 ID를 오탐할 수 있는 버그를 발견해 느슨한 정규식으로 수정, 이후 타입 체크·더미 데이터 정합성 확인 통과
+  - **관련 파일**: `docs/PRD.md`, (참조) `docs/ROADMAP.md`, `CLAUDE.md`
+  - **관련 기능**: 문서 정합성, F020~F024 정의
+  - **수락 기준**
+    - [x] PRD에 F020~F024가 정의되고, 이 로드맵의 기능 ID·명칭과 1:1로 일치함
+    - [x] PRD 어디에도 "완전 무인증"이 서비스 **전체**를 지칭하는 문장으로 남아 있지 않음(클라이언트 조회 페이지 한정으로 한정어가 붙음)
+    - [x] "MVP 이후 제외" 목록과 v2 기능 표가 서로 모순되지 않음
+    - [x] 메뉴 구조·페이지별 상세 기능·기능 명세 3개 절 간 상호 참조에 누락/고아 항목이 없음
+  - **참고**: 순수 문서 작업이라 Playwright 테스트 체크리스트 없음. 대신 F020~F024 각각이 (기능 명세 / 메뉴 구조 / 페이지별 상세) 3곳에 모두 등장하는지 `grep`으로 교차 확인할 것
+  - **변경 사항 요약**: `docs/PRD.md`에 발행자 v2 여정·v2 관리자 기능 표(F020~F024)·관리자 페이지 2종 상세·인증 방식·정합성 검증 결과를 추가하고, "완전 무인증"을 클라이언트 조회 페이지 한정으로 재기술함. `grep -n "F02[0-4]" docs/PRD.md`로 3개 절 교차 등장 확인 완료.
 
-- **Task 003: Notion SDK 설치 및 클라이언트 초기화** ✅ - 완료
-  - ✅ `@notionhq/client`(v5.23.3), `server-only` 설치
-  - ✅ `lib/notion/client.ts` — `import "server-only"` + 클라이언트 싱글턴 + `Notion-Version: 2025-09-03` 고정
-  - ✅ `lib/notion/env.ts` — `NOTION_API_KEY`, `NOTION_ITEMS_DATA_SOURCE_ID` Zod 검증, 누락 시 즉시 실패(실제 Next.js 빌드로 재현 확인)
-  - ✅ `lib/notion/property-names.ts` — Notion 속성 이름 상수 중앙화
-  - ✅ `.env.example` 추가, `.gitignore`에 `!.env.example` 예외 반영, `.env.local`은 실제 값으로 설정(커밋 대상 아님)
-  - **관련 기능**: F001
-  - **검증 요약**: 실제 Notion 워크스페이스 대상 라이브 검증으로 4가지 실제 불일치를 발견·수정 — 환경변수 파일 위치, `NOTION_ITEMS_DATA_SOURCE_ID` 값(데이터베이스 ID가 아닌 데이터소스 ID로 정정), `total_amount` 속성 타입(Number → Rollup(Sum)), Items의 `invoice` relation 속성명(대소문자/단복수 정정). 최종적으로 실제 견적서 1건과 항목 3건 모두 `notionInvoicePageSchema`/`notionItemPageSchema` 검증 통과
+- **Task 017: 관리자 도메인 타입 및 환경변수 계약 정의**
 
-### Phase 2: UI/UX 완성 (더미 데이터 활용) ✅
+  구현 전에 "무엇을 주고받는지"를 먼저 고정합니다. 이 Task 이후 모든 Task는 여기서 정의한 타입/환경변수만 사용합니다.
 
-- **Task 004: 견적서 조회 화면 UI 구현 (더미 데이터)** ✅ - 완료
-  - ✅ `components/invoice/invoice-header.tsx` — 견적서 번호, 클라이언트명, 유효기간 표시(발행일 필드는 도메인 타입에 없어 제외), 유효기간 경과 시 `Badge`로 만료 표시. 만료 판정(`Date.now()`)은 `lib/invoice/status.ts`의 `isInvoiceExpired` 순수 함수로 분리(React Compiler `react-hooks/purity` 규칙 대응)
-  - ✅ `components/invoice/invoice-items-table.tsx` — 데스크톱/태블릿은 shadcn `table` 기반(`caption`·`scope="col"`), 모바일(`md:` 미만)은 `Card` 나열로 CSS 전환(`hidden md:block` / `md:hidden`), 모바일 블록에는 `sr-only` 제목으로 데스크톱 caption과 동등한 접근성 정보 제공. 항목 0개는 안내 카드로 대체
-  - ✅ `components/invoice/invoice-total.tsx` — 합계 금액 강조 표시(`card`)
-  - ✅ `components/invoice/download-button.tsx` — "PDF 다운로드" 버튼 **UI만** 구현(실제 `window.print()` 연결은 Task 012)
-  - ✅ `lib/invoice/fixtures.ts`를 사용해 `/invoice/[id]` 페이지 전체 조립(`id` 매칭 실패 시 3항목 기본 케이스로 대체) — 이 시점에는 Notion 호출 없음
-  - ✅ 색상 하드코딩 없이 Tailwind v4 토큰만 사용
-  - **관련 기능**: F002, F003(버튼 UI), F013
-  - **검증 요약**: `npm run lint`/`npm run build` 무경고 통과. Playwright MCP로 4종 더미 데이터(0/3/32개 항목, 만료 케이스) × 라이트/다크 × 데스크톱/모바일(375px) 렌더 확인, 콘솔 에러·경고 없음. `code-reviewer` 서브에이전트 리뷰에서 모바일 카드 목록에 접근성 레이블이 없던 문제를 발견해 `sr-only` 제목 추가로 수정
+  - `types/invoice.ts`에 목록용 요약 타입 추가 — `InvoiceSummary = Omit<Invoice, "items">`(즉 `{ id, invoiceNumber, clientName, validUntil, totalAmount }`). **항목 배열을 포함하지 않는다**는 것이 이 타입의 존재 이유이므로 `items`를 옵셔널로도 넣지 말 것
+  - `types/admin.ts` 신설 — 로그인 서버 액션의 반환 타입(`AdminLoginState { status: "idle" | "error"; message?: string }` 수준), 세션 검증 결과 타입
+  - `lib/notion/env.ts`의 Zod 스키마에 `NOTION_INVOICES_DATA_SOURCE_ID` 추가(**데이터소스 ID이며 데이터베이스 ID가 아님**을 주석으로 명시)
+  - `lib/admin/env.ts` 신설(`import "server-only"`) — `ADMIN_PASSWORD`(최소 길이 검증), `ADMIN_SESSION_SECRET`(최소 32자) Zod 검증. Notion 전용 모듈과 섞지 않기 위해 별도 파일로 분리
+  - `.env.example`에 신규 변수 3종 추가 + 각 값의 획득 방법 주석. **`NEXT_PUBLIC_` 접두사 금지 규칙을 파일 상단 주석으로 명시**
+  - `.env.local`에 실제 값 설정(커밋 대상 아님) — `ADMIN_SESSION_SECRET`은 `openssl rand -base64 32` 등으로 생성
+  - Notion Invoices 데이터소스 ID를 실제 워크스페이스에서 확인해 채우고, 해당 ID로 `dataSources.query`가 최소 1건이라도 응답하는지 **이 시점에 즉시 확인**(v1 Task 003에서 데이터베이스 ID/데이터소스 ID 혼동으로 실패했던 전례를 반복하지 않기 위함)
+  - `lib/notion/property-names.ts`는 **재사용만 하고 새 상수를 추가하지 않는다**(목록에 필요한 속성 `invoice_number`/`client_name`/`valid_until`/`total_amount`가 이미 전부 정의돼 있음)
 
-- **Task 005: 오류 화면 UI 구현 (404 / 503)** ✅ - 완료
-  - ✅ `components/invoice/invoice-error-state.tsx` — `variant: "not-found" | "unavailable"`을 받는 공통 오류 상태 컴포넌트(`alert` + 아이콘 + 안내 문구), `action` 슬롯으로 재시도 버튼 주입 지원
-  - ✅ 404 문구: "견적서를 찾을 수 없습니다" + "링크가 올바른지 확인하거나 발행자에게 다시 요청해 주세요"
-  - ✅ 503 문구: "일시적으로 서비스를 이용할 수 없습니다" + "잠시 후 다시 시도해 주세요"
-  - ✅ `app/invoice/[id]/not-found.tsx`, `app/not-found.tsx`, `app/invoice/[id]/error.tsx`에 연결 — `error.tsx`는 `'use client'`에서 `unstable_retry()`를 `Button`에 연결해 "다시 시도" 제공(`useEffect` 오류 로깅·`unstable_retry` 시그니처는 그대로 유지)
-  - ✅ 오류 화면에 별도 내비게이션 메뉴 없음(PRD 준수). `role="alert"`는 `Alert` 컴포넌트에 내장되어 있어 별도 `aria-live` 추가 없이 그대로 사용(추가 시 암묵적 assertive 시맨틱과 충돌한다는 점을 code-reviewer 리뷰로 확인 후 제거)
-  - **관련 기능**: F011, F012
-  - **검증 요약**: `npm run lint`/`npm run build` 무경고 통과. `/foo`(전역 404)와 `/invoice/[id]` 페이지에 임시로 예외를 강제 발생시켜 503 화면 확인 — "다시 시도" 클릭 시 재조회가 실제로 재실행됨을 확인(임시 코드는 검증 후 원복). 라이트/다크 모드 모두 정상 렌더. `code-reviewer` 리뷰에서 `aria-live="polite"`가 `role="alert"`의 암묵적 assertive 시맨틱과 충돌하는 문제와 불필요한 이중 `flex` 래퍼를 발견해 수정
+  - **관련 파일**: `types/invoice.ts`, `types/admin.ts`(신규), `lib/notion/env.ts`, `lib/admin/env.ts`(신규), `.env.example`, `.env.local`
+  - **관련 기능**: F020(데이터 계약), F022(환경변수 계약)
+  - **수락 기준**
+    - [x] `npx tsc --noEmit` 무경고 통과
+    - [x] 신규 환경변수 3종이 모두 서버 전용이며 `NEXT_PUBLIC_` 접두사를 사용하지 않음
+    - [x] 환경변수 누락 시 애매한 런타임 오류가 아니라 **명확한 한국어 메시지로 즉시 실패**함(v1 `lib/notion/env.ts` 패턴과 동일)
+    - [x] `NOTION_INVOICES_DATA_SOURCE_ID`로 실제 Notion 응답을 최소 1건 받아 데이터소스 ID가 정확함을 확인함
+    - [x] `InvoiceSummary`가 `Invoice`에서 파생되어 두 타입이 자동으로 동기화됨
+  - **변경 사항 요약**: `types/invoice.ts`에 `InvoiceSummary = Omit<Invoice, "items">` 추가, `types/admin.ts` 신설(`AdminLoginState`, 판별 유니온 `AdminSessionVerification`), `lib/admin/env.ts` 신설(`ADMIN_PASSWORD`/`ADMIN_SESSION_SECRET` Zod 검증). **code-reviewer 지적으로 설계 변경**: `NOTION_INVOICES_DATA_SOURCE_ID`를 공유 `lib/notion/env.ts`에 넣지 않고 `lib/notion/invoices-env.ts`로 분리함 — 공유 스키마에 넣으면 이 값 누락 시 무관한 공개 `/invoice/[id]` 경로까지 즉시 죽는 문제가 있었음. Notion Invoices 데이터소스(`3a726a4c-46b7-8042-876f-000bf394f83e`)를 실제 조회해 3건 응답을 확인함(Notion MCP로 확보, 통합 토큰으로 별도 공유 작업 불필요함을 검증).
 
-- **Task 006: 반응형 레이아웃 및 로딩 상태 완성** ✅ - 완료
-  - ✅ 모바일(`md:` 미만): 표 대신 항목별 카드 나열 / 태블릿·데스크톱(`md:` 이상, 768px부터): `table` 레이아웃 — Task 004에서 이미 CSS 기반(`hidden md:block` / `md:hidden`)으로 구현되어 있었음을 확인, 추가 변경 없음
-  - ✅ JS 분기(`hooks/use-breakpoint.ts`) 없이 CSS만으로 충분함을 확인 — 훅은 손대지 않음
-  - ✅ `app/invoice/[id]/loading.tsx`에 `skeleton` 기반 로딩 UI 구현 — 실제 페이지와 동일한 폭/패딩으로 레이아웃 시프트 최소화, 항목 영역도 `hidden md:flex`(표 형태 근사)/`md:hidden`(카드 형태)로 나눠 실제 반응형 분기와 대응시킴, `role="status"` + `sr-only` 텍스트로 접근성 처리
-  - ✅ 긴 항목명·큰 금액·많은 항목(32개) 상황은 Task 004에서 이미 처리됨(표는 `overflow-x-auto` 내부에서만 스크롤, 본문 가로 스크롤 없음) — 768px 경계에서 재검증
-  - ✅ 375 / 768 / 1280 / 1920px 시각 검증 완료(로딩 셸 포함)
-  - **관련 기능**: F013, F002
-  - **검증 요약**: `npm run lint`/`npm run build` 무경고 통과. 인위적 지연을 임시로 주입해 로딩 스켈레톤을 375px(카드 근사)·1280px(표 근사) 모두에서 확인 후 원복. 768px에서 32항목 데이터가 가로 스크롤 없이(`scrollWidth === clientWidth`) 표 레이아웃으로 정상 표시됨을 확인, 1920px 데스크톱 렌더 확인. 콘솔에 hydration 경고 없음. `code-reviewer` 리뷰에서 `aria-hidden` 조상 내부에 갇혀 스크린리더에 도달 불가능한 `sr-only` 텍스트, 데스크톱에서 스켈레톤(카드형)과 실제 렌더(표형) 구조가 달라 레이아웃 시프트가 크다는 문제를 발견해 데스크톱 전용 표 형태 스켈레톤 추가 및 죽은 텍스트 제거로 수정
+- **Task 018: 관리자 라우트 골격 및 레이아웃 스켈레톤 생성**
 
-### Phase 3: Notion 연동 및 핵심 기능 구현 ✅
+  실제 UI/로직 없이 **라우트 구조와 경계만** 먼저 확정합니다(구조 우선 접근법). 이 시점의 페이지는 하드코딩된 자리표시자 텍스트만 렌더합니다.
 
-- **Task 007: 견적서 ID 형식 검증 구현 (F010)** ✅ - 완료
-  - ✅ `lib/invoice/normalize-id.ts` — 32자 hex ↔ 하이픈 UUID 상호 변환/정규화, 소문자 통일(`normalizeInvoiceId`, 이미 `invoiceIdSchema` 통과한 값에만 호출한다는 전제의 순수 함수)
-  - ✅ `app/invoice/[id]/page.tsx`에서 `await params` 직후 `invoiceIdSchema.safeParse` 실행, 실패 시 **데이터 조회 전에** `notFound()` 호출(현재는 Notion 대신 더미 fixture 조회 전에 차단 — Task 008/009에서 실제 Notion 호출로 교체돼도 이 순서가 유지됨)
-  - ✅ 검증 실패는 PRD 정책에 따라 404로 통일
-  - ✅ 검증 로직을 순수 함수(`normalizeInvoiceId`)로 분리
-  - **관련 기능**: F010
-  - **검증 요약**: `npm run lint`/`npm run build` 무경고 통과. 아직 Task 008(Notion 조회 계층)이 없어 원래 체크리스트의 "Notion 요청 발생/0건 확인"은 검증 불가 — 대신 실제 동작(정상 진입 vs 404, 콘솔 에러, 외부 요청 없음)으로 대체 검증: 하이픈 UUID·하이픈 없는 32자 hex(정규화되어 동일 fixture로 매칭 확인)·대문자 UUID 모두 정상 진입, 짧은 문자열(`abc`)·숫자만(`123456`)·특수문자(`../secret` URL 인코딩)·공백·300자 초장문 ID 모두 404 화면 표시 및 서버 예외(500) 없음(`NEXT_HTTP_ERROR_FALLBACK;404`로 정상 처리됨을 RSC 페이로드로 확인). `browser_console_messages`에 에러 없음, `browser_network_requests`에 정적 자산 외 요청 없음. **참고**: `cacheComponents`(PPR) 하에서 페이지 최상단 `notFound()`가 즉시 트리거돼도 스트리밍 셸이 먼저 200으로 응답이 시작된 뒤 본문만 not-found로 스트리밍되어, 최종 HTTP 상태 코드는 200으로 관측됨(본문/화면은 정확히 404 UI) — 이 정확한 상태 코드 처리 방식은 로드맵상 Task 010에서 다루기로 이미 정해진 결정 사항이라 이번 Task 범위에서는 손대지 않음. `code-reviewer` 리뷰에서 불필요한 정규식 `i` 플래그를 발견해 제거(입력을 이미 소문자화한 뒤 테스트하므로 무의미했음)
+  - 라우트 그룹으로 **보호 구역과 로그인 페이지를 분리**:
+    - `app/admin/layout.tsx` — `/admin` 전 구역 공통. `metadata`에 `robots: { index: false, follow: false }` 지정(관리자 영역은 절대 색인되면 안 됨). **세션 검증은 여기에 넣지 않는다**(로그인 페이지도 이 레이아웃 아래에 있기 때문)
+    - `app/admin/(protected)/layout.tsx` — 세션 검증이 들어갈 자리(Task 022에서 채움) + 관리자 셸 자리표시자
+    - `app/admin/(protected)/page.tsx` — 견적서 목록 페이지(URL은 `/admin`)
+    - `app/admin/login/page.tsx` — 로그인 페이지
+  - `app/admin/(protected)/loading.tsx` 생성 — `cacheComponents` 환경에서 `cookies()`/Notion 조회가 정적 셸과 분리되도록 하는 필수 장치(선결 조사 5번)
+  - `app/admin/(protected)/error.tsx` 생성 — `'use client'` + **`reset`이 아닌 `unstable_retry`** 사용(v1과 동일 규약)
+  - 디렉터리 확정: `components/admin/`, `lib/admin/`(이후 Task에서 채움)
+  - `app/layout.tsx`는 **수정하지 않는다** — 전역 프로바이더(`ThemeProvider`/`TooltipProvider`/`Toaster`)를 그대로 상속받으며, 특히 `Toaster`가 이미 있으므로 링크 복사 토스트를 위해 새로 추가할 것이 없음
+  - `/invoice/[id]`·`app/page.tsx`·`app/not-found.tsx`에 **어떤 변경도 가하지 않음**을 `git diff`로 확인
 
-- **Task 008: Notion 데이터 조회 계층 구현 (F001)** ✅ - 완료
-  - ✅ `lib/notion/invoice-repository.ts` — `getInvoiceById(id)`: ① `pages.retrieve`로 견적서 1건 조회 ② `dataSources.query`로 Items를 `relation.contains = 견적서 id` 필터 + `created_time` 정렬로 조회, 두 호출은 `Promise.allSettled`로 병렬화
-  - ✅ **관계/롤업 25개 절단 대응**: 항목은 Items data source 쿼리로만 가져오고 `has_more`/`next_cursor` do-while 페이지네이션 구현(견적서 페이지의 `items` relation에는 의존하지 않음). `total_amount` rollup은 항목 합계와 교차 검증해 불일치·null이면 항목 합계로 대체하는 방식으로 절단 문제를 우회했고, 이 방식으로 충분해 `pages.properties.retrieve` 보완 호출은 추가하지 않음
-  - ✅ Zod 응답 매핑 검증(`notionInvoicePageSchema`, `notionItemPageSchema`) — 실패 시 `InvoiceUnavailableError`로 변환(실제로 Item 페이지 id를 Invoice로 잘못 조회하는 경우로 라이브 검증)
-  - ⚠️ **오류 분류를 로드맵 원문에서 의도적으로 수정**: 원문은 `unauthorized`를 `InvoiceNotFoundError`(404)로 분류했으나, 이 태스크 자체의 테스트 체크리스트가 "잘못된 API 키 → 503"을 요구해 원문과 모순됨. 실제 Notion 시맨틱(`object_not_found`/`restricted_resource`=통합 미공유, `unauthorized`=토큰 자체 문제)에 맞춰 `unauthorized`는 `InvoiceUnavailableError`(503)로 재분류함 — 잘못된 키로 전체 서비스가 장애일 때 모든 견적서가 "존재하지 않음"으로 오안내되는 것을 방지. 최종 분류: `InvoiceNotFoundError` ← `object_not_found`/`restricted_resource`/`validation_error`(견적서 페이지 조회에서만) / `InvoiceUnavailableError` ← 그 외 전부(`unauthorized` 포함) + 항목 조회(`dataSources.query`) 쪽 오류는 코드 종류와 무관하게 항상 503(항목 쿼리 실패는 필터/설정 문제이지 "견적서 없음"이 아니므로 페이지 조회와 분류 함수를 분리함, code-reviewer 리뷰로 발견)
-  - ✅ Notion SDK(v5.23.3) 내장 `timeoutMs`(5초)·`retry`(`maxRetries: 1`, 429/5xx 시 `Retry-After` 기반 자동 재시도)를 `lib/notion/client.ts`에 설정 — 로드맵 원문이 가정한 수동 `AbortSignal` 구현 대신, 현재 설치된 SDK가 이미 이 기능을 네이티브로 제공함을 `node_modules` 타입 정의로 직접 확인하고 사용(AGENTS.md의 "학습 데이터와 다른 breaking change 확인" 지침에 따름)
-  - ✅ `cacheComponents: true` 환경에서 `"use cache"`를 전혀 사용하지 않아 기본 dynamic 동작 유지
-  - **검증 요약**: `npx tsc --noEmit`/`npm run lint`/`npm run build` 무경고 통과. Task 009가 아직 페이지에 연결되지 않아 브라우저 기반 체크리스트는 수행 불가 — 대신 임시 Route Handler(검증 후 삭제)로 실제 Notion 워크스페이스에 라이브 검증: 실제 견적서 1건(항목 3건) 조회 시 번호·클라이언트명·항목·합계 정확히 일치, 존재하지 않는(형식은 유효한) UUID → `InvoiceNotFoundError`, 실제 토큰을 무효 값으로 교체 → `APIErrorCode.Unauthorized` 확인 후 `InvoiceUnavailableError`로 분류됨을 확인, Item 페이지 id를 Invoice로 조회 → 스키마 불일치로 `InvoiceUnavailableError`. **미검증(실제 워크스페이스에 30개 이상 항목 견적서가 없어 페이지네이션 연속 확인 불가, 응답 지연/rate limit도 재현하지 않고 SDK 문서상의 동작에 의존)** — 이 두 시나리오는 Task 009에서 화면에 연결된 뒤 필요 시 재확인
-  - **관련 기능**: F001
+  - **관련 파일**: `app/admin/layout.tsx`, `app/admin/(protected)/{layout,page,loading,error}.tsx`, `app/admin/login/page.tsx`
+  - **관련 기능**: F023(오류 라우트 골격), F024(레이아웃 골격), F020·F022의 배치 지점 확보
+  - **수락 기준**
+    - [x] `/admin`, `/admin/login` 두 경로가 모두 200으로 렌더됨(아직 인증 없음 — Task 022에서 보호)
+    - [x] `npm run build`가 prerender 오류 없이 통과(라우트 그룹·`loading.tsx` 조합이 `cacheComponents`와 충돌하지 않음)
+    - [x] `npm run lint` 무경고
+    - [x] `/admin` 응답의 `<meta name="robots">`에 `noindex, nofollow`가 포함됨
+    - [x] 기존 라우트(`/`, `/invoice/[id]`, `/foo` 404)의 동작에 회귀가 없음
+    - [x] 브랜치 전략 준수 — 이 Task 결과물이 `main`에 병합되지 않음(배포 안전 규칙, `feat/admin-invoice-list` 브랜치에서 작업)
+  - **변경 사항 요약**: `app/admin/layout.tsx`(robots noindex + title), `app/admin/(protected)/{layout,page,loading,error}.tsx`, `app/admin/login/page.tsx` 신설. `npx tsc --noEmit`/`npm run lint`/`npm run build` 통과, `npm run dev`로 `/admin`(200, noindex 확인)·`/admin/login`(200)·`/`(200)·`/foo`(404)·유효한 `/invoice/[id]`(200) 회귀 없음을 확인. **code-reviewer 지적 반영**: `(protected)/layout.tsx`에 "loading.tsx가 같은 세그먼트 layout을 감싸지 않으므로 Task 022의 `verifySession()`은 page 또는 별도 `Suspense`로 처리할 것"이라는 주의 주석 추가, `app/admin/layout.tsx`에 `title: "관리자"` 추가.
 
-- **Task 009: 조회 페이지 실데이터 연결 (F002)** ✅ - 완료
-  - ✅ `app/invoice/[id]/page.tsx`에서 `fixtures` 제거 → `getInvoiceById()` 결과를 Task 004 컴포넌트에 주입. ID 검증(Task007) + 조회(Task008) + `notFound()` 분기를 `getValidatedInvoice`로 묶고 React `cache()`로 감싸 `generateMetadata`·페이지 본문이 동일 id에 대해 Notion을 두 번 호출하지 않도록 함(`fetch`가 아닌 SDK 호출이라 Next의 자동 fetch memoization이 적용되지 않아 `cache()`가 정확한 선택 — code-reviewer가 React 소스로 `cache()`+`notFound()`+async 조합의 안전성까지 직접 검증)
-  - ✅ `generateMetadata`로 `invoice.invoiceNumber` 기반 제목 설정(레이아웃의 `%s – 견적서 조회` 템플릿 적용), `clientName` 등 식별 정보는 `description`/기타 필드 어디에도 포함하지 않음
-  - ✅ `robots: { index: false, follow: false }` 설정
-  - ✅ 포맷 규칙은 기존 `lib/invoice/format.ts`(Task002) 그대로 재사용 — 이 태스크에서 새로 만들 필요 없었음
-  - ✅ `app/invoice/[id]/loading.tsx`(Task006)가 파일 컨벤션으로 `page.tsx`를 자동으로 `Suspense`로 감싸는 것을 그대로 활용(별도 수동 `Suspense` 경계 추가하지 않음 — Task006 리뷰에서 이미 검증된 메커니즘)
-  - ℹ️ `InvoiceUnavailableError`는 이 태스크에서 별도로 잡지 않고 기존 `error.tsx` 경계로 흘려보냄(503 문구는 정확히 표시되지만, HTTP 상태 코드 자체는 200일 수 있음 — Task010이 이미 "페이지 내부에서 포착해 503 안내 컴포넌트 렌더 + HTTP 상태 코드 정확성 처리 방식 결정"을 맡고 있어 그대로 남겨둠, code-reviewer도 동일하게 확인)
-  - **관련 기능**: F002
-  - **검증 요약**: `npx tsc --noEmit`/`npm run lint`/`npm run build` 무경고 통과. 실제 Notion 워크스페이스 견적서(INVOICE-2026-001, 항목 3건, 합계 ₩3,000,000)로 라이브 검증: 클라이언트명·유효기간·항목별 수량/단가/금액·합계 모두 정확히 렌더, 항목 금액 합=합계 표시 일치, 페이지 타이틀에 클라이언트명 미노출, `robots` 메타 `noindex, nofollow` 확인. 존재하지 않는(형식은 유효한) ID → 404(Task007 회귀 없음). `NOTION_API_KEY`를 임시로 무효 값으로 교체(검증 후 원복)해 503 화면 확인 — 부분 렌더 없이 전환, HTML·콘솔에 토큰/스택 미노출. 라이트/다크 모드 모두 콘솔 에러·hydration 경고 없음. **미검증**: 실제 Notion 데이터를 수정해 "새로고침 시 즉시 반영"을 라이브로 확인하지는 않음(운영 데이터 변경 방지 — 코드상 `"use cache"` 미사용으로 dynamic 유지되는 것은 Task008에서 이미 정적 분석으로 확인됨), 항목 0개/매우 긴 항목명/10억 이상 금액은 컴포넌트 자체가 Task004/006에서 더미 데이터로 이미 검증됨(항목 0개·32개·긴 텍스트 케이스)이라 재검증하지 않음
+### Phase 7: 관리자 UI 완성 (더미 데이터 활용)
 
-- **Task 010: 오류 분기 처리 구현 (F011 / F012)** ✅ - 완료
-  - ✅ `InvoiceNotFoundError`는 기존대로 `getValidatedInvoice` 내부에서 `notFound()` 호출 → `not-found.tsx`(404) 표시(변경 없음)
-  - ✅ `InvoiceUnavailableError`는 `app/invoice/[id]/page.tsx`의 `generateMetadata`와 `InvoicePage` 양쪽에서 각각 별도 `try/catch`로 포착 — 더 이상 throw해서 `error.tsx` 경계로 흘려보내지 않고, 페이지 본문이 직접 `<InvoiceErrorState variant="unavailable" />`를 렌더. `generateMetadata`는 잡히면 `invoiceNumber` 없이 기본 title 템플릿만 반환(클라이언트명 등 식별 정보 미노출 유지). `error.tsx`는 이제 정말 예기치 않은 예외에 대한 안전망으로만 남고, `unstable_retry` 기반 "다시 시도"도 그대로 유지
-  - ✅ `components/invoice/invoice-retry-button.tsx` 신규 — `router.refresh()` + `useTransition`으로 페이지 내부 503 화면에서도 재조회 가능한 "다시 시도" 버튼 제공(경계 밖에서 잡은 케이스이므로 `unstable_retry`를 쓸 수 없어 별도 구현). `code-reviewer` 리뷰에서 `isPending` 동안 시각적 피드백이 없다는 제안을 받아 `Loader2Icon` 스피너 + "재시도 중..." 라벨로 보완
-  - ⚠️ **HTTP 상태 코드 결정 사항**: `InvoiceUnavailableError`를 페이지 내부에서 잡아 정상적으로 JSX를 반환하는 방식이라 throw/오류 경계를 거치지 않으므로, 이 503 화면의 실제 HTTP 응답 상태는 200이다(라이브 검증: `curl`로 무효 토큰 상태에서 `/invoice/[id]` 응답 코드가 200임을 직접 확인). 이 서비스는 `robots: noindex`로 크롤러 색인 대상이 아니고, 업타임 모니터링·로드밸런서가 상태 코드에 의존하는 요구사항이 PRD에 없어 화면 안내 정확성을 상태 코드 정확성보다 우선하기로 결정 — 미들웨어/Route Handler로 503을 강제하는 우회는 도입하지 않음(`page.tsx`의 해당 catch 블록에 동일 결정을 주석으로도 남김). `code-reviewer` 리뷰에서 이 결정이 코드/문서 어디에도 기록되어 있지 않다는 점을 지적받아 이번에 명문화함
-  - ✅ 상세 오류 원인(Notion 오류 코드/스택)은 `console.error("[invoice] Notion 조회 실패:", error)`로 서버(Server Component) 로그에만 남기고 클라이언트에는 노출하지 않음 — 프로덕션 빌드로 라이브 검증(아래 참조)
-  - ✅ 404/503 문구는 기존 `InvoiceErrorState`(Task005)를 그대로 재사용해 이미 명확히 구분됨 — 변경 없음
-  - **관련 기능**: F011, F012
-  - **검증 요약**: `npx tsc --noEmit`/`npm run lint` 무경고 통과. Playwright MCP로 체크리스트 7종 전부 라이브 검증: 유효한 견적서(INVOICE-2026-001) 정상 렌더 회귀 없음, 미존재(형식은 유효한) ID → 404, `NOTION_API_KEY`를 무효 값으로 교체(검증 후 원복)해 503 UI가 페이지 내부에서 직접 렌더됨을 확인. **프로덕션 빌드(`next build && next start`) 기준**으로 HTML·브라우저 콘솔에 토큰·스택 미노출 확인(HTML의 `"unauthorized":"$undefined"`는 Next.js 내장 parallel-route 슬롯 키라 무관함을 직접 확인) — **단, `next dev` 모드에서는 Next.js가 서버 콘솔을 브라우저 콘솔로 미러링하는 자체 DX 기능 때문에 `console.error` 스택이 그대로 노출됨을 확인했고, 이는 개발 전용 동작이라 프로덕션에서는 재현되지 않음을 별도 검증**. "다시 시도" 클릭 시 실제 RSC 재요청 발생(`browser_network_requests`로 확인, 토큰이 여전히 무효면 503 유지) 및 토큰 복구 후 재클릭 시 정상 화면으로 즉시 전환 확인. 재시도 버튼의 "재시도 중..." pending 상태도 5ms 간격 폴링으로 실제 렌더됨을 확인. 뒤로가기 정상 동작, `/foo` → 전역 404(HTTP 404) 확인. `code-reviewer` 서브에이전트 리뷰로 React `cache()`가 reject된 Promise도 안전하게 재사용됨(react-server 소스 직접 확인)을 검증받았고, 위 두 지적 사항(HTTP 상태 코드 결정 미문서화, 재시도 버튼 pending 피드백 부재)을 모두 반영해 수정함
+> 이 Phase는 **Notion 호출 없이** `lib/invoice/fixtures.ts` 기반 더미 데이터로 화면을 완성합니다. 실제 인증과 실제 데이터 연결은 Phase 8입니다. **Phase 7 산출물은 절대 `main`에 병합하지 않습니다**(배포 안전 규칙).
 
-  **테스트 체크리스트 (Playwright MCP)**
-  - [x] 정상: 유효한 견적서는 오류 화면으로 빠지지 않음(회귀 확인)
-  - [x] 실패: 미존재 ID → "견적서를 찾을 수 없습니다" 표시
-  - [x] 실패: Notion API 장애/타임아웃 재현 → "일시적으로 서비스를 이용할 수 없습니다" 표시
-  - [x] 실패: 오류 화면 HTML·콘솔에 스택 트레이스·토큰·내부 경로 미노출 확인(프로덕션 빌드 기준)
-  - [x] 엣지: "다시 시도" 클릭 시 재조회 요청이 실제로 발생(`browser_network_requests`)하고, 복구 후에는 정상 화면으로 전환
-  - [x] 엣지: 오류 화면에서 뒤로가기(`browser_navigate_back`) 동작이 정상
-  - [x] 엣지: 존재하지 않는 임의 경로(`/foo`) → 전역 404 표시
+- **Task 019: 관리자 셸 및 로그인 화면 UI 구현** ✅
 
-- **Task 011: 핵심 플로우 통합 테스트** ✅ - 완료
-  - ✅ 새 코드 변경 없음(순수 검증 Task) — Playwright MCP로 라이브 Notion 워크스페이스 대상 종단 검증만 수행
-  - ✅ 정상 여정: `/invoice/[id]` 링크 직접 접속(PRD상 클라이언트는 전달받은 링크로만 진입하므로 루트 페이지 경유 없이 검증) → INVOICE-2026-001(ABC 회사, 항목 3건, 합계 ₩3,000,000) 정상 렌더
-  - ✅ 분기 3종(정상→404→503)을 한 세션에서 연속 전환하며 검증 — 404는 미존재(형식은 유효한) UUID, 503은 `NOTION_API_KEY`를 임시 무효값으로 교체(검증 후 즉시 원복)해 재현
-  - ✅ 375 / 768 / 1280px 각 뷰포트에서 정상·404 시나리오 반복 확인, 매 뷰포트 콘솔 에러 0건(경고 1건은 Notion SDK의 `object_not_found` 진단 로그로 Task007~010에서 이미 무해함을 확인한 것과 동일 — 새 이슈 아님). 503 UI는 375/768/1280 반응형 레이아웃 자체가 404와 동일한 `InvoiceErrorState` 컴포넌트를 그대로 재사용하므로(Task005/006/010에서 이미 반응형 검증 완료) 뷰포트별 재검증에서 제외
-  - ✅ `browser_network_requests`로 브라우저 레벨 중복 요청 없음 확인(문서 요청 1회 + 정적 자산만, RSC 재요청 없음). 서버→Notion 호출 중복 방지(React `cache()`)는 Task009/010에서 이미 소스 레벨로 검증됨 — 이번엔 브라우저 관측 가능 범위만 재확인
-  - ✅ 엣지: 동일 견적서 연속 3회 재조회 → 클라이언트명·합계·타이틀 모두 매번 동일(`ABC 회사`/`₩3,000,000`/`INVOICE-2026-001 – 견적서 조회`)
-  - ✅ 엣지: `lib/notion/invoice-repository.ts`의 `getInvoiceById`에 3초 지연을 임시 주입(검증 후 원복, `git diff`로 무변경 확인)해 `loading.tsx` 스켈레톤(`role="status"`, "불러오는 중")이 표시된 뒤 정상 콘텐츠로 전환됨을 확인
-  - **관련 기능**: 전체 플로우
-  - **검증 요약**: `npx tsc --noEmit`/`npm run lint` 무경고 통과(임시 지연 코드 원복 후). 테스트 체크리스트 5종 전부 통과 — 아래 참조
+  - shadcn MCP/CLI로 `input` 추가(필요 시 `label`도) — **`components/ui/*`는 생성 코드로 취급하고 직접 수정하지 않음**
+  - `components/admin/admin-shell.tsx` — 관리자 공통 셸. 상단 헤더에 서비스명 + "견적서 목록" 제목 + 로그아웃 버튼 자리(동작은 Task 022). 클라이언트 조회 페이지와 달리 **여기에는 헤더가 존재**하며, `/invoice/[id]`의 레이아웃에는 영향을 주지 않음을 확인
+  - `components/admin/login-form.tsx` — 비밀번호 1개 필드 + 제출 버튼. `<form action={...}>` + `useActionState` 기반 서버 액션 폼으로 설계(이 Task에서는 액션을 no-op 스텁으로 두고 Task 022에서 연결). **`react-hook-form`을 도입하지 않는다** — 필드 1개짜리 폼에 클라이언트 폼 라이브러리는 과설계이며, 검증은 어차피 서버에서 해야 함
+  - 로그인 폼 접근성: `<label for>` 연결, `type="password"`, `autoComplete="current-password"`, 오류 메시지를 `aria-describedby`로 입력에 연결, 제출 중 `disabled` + 진행 표시(v1 `invoice-retry-button.tsx`의 `useTransition`/스피너 패턴 재사용)
+  - 로그인 실패 메시지 문구 확정 — **"비밀번호가 올바르지 않습니다"** 한 가지만 사용(어떤 값이 틀렸는지·비밀번호가 설정돼 있는지 등 내부 정보를 유추할 수 있는 문구 금지)
+  - 색상 하드코딩 없이 Tailwind v4 토큰만 사용, 라이트/다크 모두 대응
+  - 관리자 화면은 인쇄 대상이 아니므로 전역 `@media print` 규칙과의 충돌 여부만 확인(새 인쇄 스타일 추가 금지)
 
-  **테스트 체크리스트 (Playwright MCP)**
-  - [x] 정상: 전체 여정이 끊김 없이 완료
-  - [x] 실패: 잘못된 링크·장애 상황이 각각 올바른 안내로 귀결
-  - [x] 엣지: 동일 견적서 연속 3회 재조회 시 결과 일관성 유지
-  - [x] 엣지: 느린 네트워크에서 로딩 스켈레톤이 표시된 후 정상 전환
-  - [x] 모든 뷰포트에서 콘솔 에러 0건
+  - **관련 파일**: `components/admin/admin-shell.tsx`(신규), `components/admin/login-form.tsx`(신규), `components/ui/input.tsx`(shadcn 생성), `app/admin/login/page.tsx`, `app/admin/(protected)/layout.tsx`
+  - **관련 기능**: F022(로그인 화면), F024(셸 반응형)
+  - **수락 기준**
+    - [x] 로그인 화면이 375 / 768 / 1280px에서 레이아웃 깨짐 없이 렌더되고, 라이트·다크 모두 대비가 충분함
+    - [x] 키보드만으로 비밀번호 입력 → 제출까지 도달 가능하고 포커스 링이 보임
+    - [x] 비밀번호 입력값이 화면에 평문으로 노출되지 않음(`type="password"`)
+    - [x] `npm run lint` / `npm run build` 무경고
+    - [x] `/invoice/[id]` 화면에 시각적 회귀가 없음(관리자 셸이 전역 레이아웃을 오염시키지 않음)
+  - **변경 사항 요약**: shadcn으로 `input`/`label` 추가, `AdminShell`(헤더+로그아웃 버튼 자리)과 `LoginForm`(`useActionState` + no-op 스텁 액션, 하드코딩된 단일 실패 문구) 구현, `app/admin/login/page.tsx`·`app/admin/(protected)/layout.tsx`에 연결. Playwright로 375/768/1280px·라이트/다크 스크린샷, 키보드 포커스 링, `type="password"` 마스킹, 제출 후 콘솔 에러 0건, `/invoice/[id]`·`/admin` 회귀 없음을 확인. **code-reviewer 지적으로 수정**: `AdminShell`이 자체 `<main>`을 가지면서 `(protected)/page.tsx`·`loading.tsx`·`error.tsx`도 각자 `<main>`을 갖고 있어 `<main>` 랜드마크가 중복 렌더되던 문제를 발견 — 세 파일을 `<div>`로 변경해 `<main>`을 문서당 1개로 유지. 로딩 스피너에 `aria-hidden` 추가.
 
-### Phase 4: PDF 다운로드 및 인쇄 품질 ✅
+- **Task 020: 견적서 목록 화면 UI 구현 (더미 데이터)** ✅
 
-- **Task 012: PDF 다운로드 및 인쇄 전용 스타일 구현 (F003)** ✅ - 완료
-  - ✅ `components/invoice/download-button.tsx`를 `'use client'`로 전환, `onClick={() => window.print()}` 연결
-  - ✅ `app/globals.css`에 `@media print` 블록 추가: `[data-sonner-toaster]` 숨김(다운로드 버튼은 컴포넌트에 직접 `print:hidden` 적용 — 아래 code-reviewer 반영 참조). 배경/텍스트는 `:root`와 `.dark`를 인쇄 시 동일한 라이트 톤 CSS 변수로 오버라이드하는 방식으로 강제(개별 요소에 `color: black` 하드코딩 대신 기존 토큰 체계를 그대로 활용). `[data-slot="badge"]`(만료 뱃지처럼 배경색이 정보를 전달하는 곳)에만 `print-color-adjust: exact` 적용
-  - ✅ `@page { size: A4; margin: 12mm }`, `thead { display: table-header-group }`, `tr/td/th { break-inside: avoid }` 추가. `InvoiceTotal` 카드에 `print:break-inside-avoid`로 합계 블록 자체가 페이지 중간에 잘리지 않도록 처리
-  - ✅ `a[href]::after { content: none }`로 브라우저 기본 인쇄 스타일이 링크 뒤에 URL을 붙이는 것을 방지, `app/invoice/[id]/page.tsx`의 `<main>`에 `print:max-w-none print:p-0 print:gap-4`로 화면용 중앙 정렬 여백을 인쇄 시 제거
-  - ⚠️ **라이브 검증 중 발견한 실제 버그와 수정**: A4 인쇄 가능 폭(12mm 여백 기준 약 703px)이 `md:` 브레이크포인트(768px)보다 좁아, `print:` 없이는 인쇄가 **모바일 카드 레이아웃**으로 렌더링되어 `thead` 헤더 반복이 무력화되고 카드가 페이지 경계에서 중간 절단되는 실제 문제를 Playwright로 PDF를 직접 생성해 확인함. `components/invoice/invoice-items-table.tsx`의 두 래퍼에 `print:block`/`print:hidden`을 추가해 인쇄 시 항상 표 레이아웃을 쓰도록 고정하여 해결(수정 후 재검증 통과)
-  - ✅ **code-reviewer 반영**: ① `@media print`의 `:root`/`.dark` 토큰 오버라이드에 `--destructive`가 빠져 있어, 다크 모드에서 인쇄하면 배경만 흰색으로 강제되고 만료 뱃지는 다크 모드용으로 튜닝된 밝은 빨강을 그대로 써 라이트 모드와 대비가 달라지는 문제 → `--destructive`를 라이트 값으로 함께 오버라이드해 수정(다크 모드 + 만료 뱃지 조합으로 재검증). ② 전역 `[data-slot="button"]` 셀렉터로 모든 버튼을 인쇄 시 숨기면 향후 추가될 링크형 버튼(`asChild`)까지 의도치 않게 사라질 수 있다는 지적 → 전역 규칙 제거, `download-button.tsx`에 `print:hidden`을 직접 적용해 다른 컴포넌트(`invoice-total.tsx`/`invoice-items-table.tsx`)와 동일하게 컴포넌트 단위 `print:` variant로 통일. ③ `--muted-foreground`를 `--foreground`와 완전히 동일한 값으로 강제해 "합계 금액" 라벨 등의 시각적 위계가 인쇄물에서 사라지던 문제 → `oklch(0.35 0 0)`로 완화해 위계 유지
-  - **관련 기능**: F003
-  - **검증 요약**: `npx tsc --noEmit`/`npm run lint` 무경고 통과. 테스트 체크리스트 8종 전부 Playwright MCP로 라이브 검증 — 아래 참조. 항목 50개/0개 케이스는 실제 Notion 워크스페이스에 해당 데이터가 없어(Task008/009에서도 동일 사유로 미검증) 임시 라우트(`app/print-test-*-temp`, `lib/invoice/fixtures.ts`와 동일한 방식으로 합성 데이터 사용)로 검증 후 삭제(`git status`로 잔여물 없음 확인)
+  - `lib/invoice/fixtures.ts`에 목록용 더미 추가 — `invoiceSummaryFixtures: InvoiceSummary[]`. **0건 / 1건 / 25건 / 120건**(페이지네이션·성능 감각용), **클라이언트명 초장문 / 견적서 번호 초장문 / 유효기간 `null` / 만료된 건 / 합계 0원 / 10억 이상 금액**을 포함할 것
+  - `components/admin/invoice-list-table.tsx` — 목록 표시. 컬럼: 견적서 번호 / 클라이언트명 / 유효기간(만료 시 `Badge`) / 합계 금액 / 링크 복사 버튼
+  - **반응형 전략은 v1 `invoice-items-table.tsx`와 동일한 CSS 분기**를 따른다 — `md:` 미만은 `Card` 나열, `md:` 이상은 shadcn `table`(`hidden md:block` / `md:hidden`). JS 브레이크포인트 훅(`use-breakpoint`)을 쓰지 않아 hydration mismatch 여지를 원천 차단
+  - 접근성: `table`에 `caption`, 헤더 셀에 `scope="col"`, 모바일 카드 목록에는 `sr-only` 제목으로 동등한 정보 제공(v1에서 code-reviewer가 지적해 도입한 패턴)
+  - 정렬·표시 규칙: 금액은 `formatCurrency`, 날짜는 `formatDate`(**`toLocaleDateString()` 절대 금지**), 만료 판정은 `isInvoiceExpired` 재사용 — **새 포맷/판정 함수를 만들지 않는다**
+  - `components/admin/admin-empty-state.tsx` — 견적서 0건일 때 "등록된 견적서가 없습니다 / Notion에서 견적서를 먼저 등록해 주세요" 안내
+  - 목록 로딩 스켈레톤을 `app/admin/(protected)/loading.tsx`에 구현 — 실제 목록과 동일한 폭/행 높이로 레이아웃 시프트 최소화, `role="status"` + `sr-only` 텍스트(v1 Task 006 패턴)
+  - 각 행에서 클라이언트 조회 페이지로 이동할 수 있는 링크 제공 여부는 **제공한다**(견적서 번호를 `/invoice/[id]`로 가는 링크로) — 운영자가 실제 화면을 확인할 수 있어야 하므로. 단 `target="_blank"` 사용 시 `rel="noopener noreferrer"` 필수
 
-  **테스트 체크리스트 (Playwright MCP)**
-  - [x] 정상: `browser_evaluate`로 `window.print`를 스텁한 뒤 버튼 클릭 → 호출 1회 확인
-  - [x] 정상: 인쇄 미디어 에뮬레이션 상태의 `browser_take_screenshot`에서 버튼·토스트가 사라지고 본문만 남음
-  - [x] 정상: 다크 모드에서 인쇄 뷰가 흰 배경/검정 텍스트로 렌더(`.dark` 클래스 추가 후 스크린샷 비교로 라이트 모드와 동일 확인)
-  - [x] 실패: `window.print`가 예외를 던지도록 스텁해 인쇄 차단·취소를 재현해도 페이지 URL·콘텐츠가 그대로 유지되고 오류 화면으로 이탈하지 않음(이벤트 핸들러 예외는 애초에 `error.tsx` 경계를 거치지 않음을 확인)
-  - [x] 엣지: 항목 50개(임시 라우트) → `page.pdf()`로 실제 PDF 생성해 3페이지로 분할, 매 페이지 상단에 "항목/수량/단가/금액" 헤더 반복, 행 중간 절단 없음을 PDF 페이지 이미지로 직접 확인(위 버그 수정 전에는 헤더 미반복·카드 중간 절단을 실측으로 확인 후 수정)
-  - [x] 엣지: 항목 0개(임시 라우트) 인쇄 시에도 "등록된 항목이 없습니다" 카드 + 합계 ₩0 레이아웃 정상
-  - [x] 엣지: 375px 모바일 뷰포트에서 버튼 클릭 → `window.print` 호출 1회 확인
-  - [x] `browser_console_messages`에 에러 없음(정상 플로우 전 구간 기준)
+  - **관련 파일**: `components/admin/invoice-list-table.tsx`(신규), `components/admin/admin-empty-state.tsx`(신규), `lib/invoice/fixtures.ts`, `app/admin/(protected)/{page,loading}.tsx`
+  - **관련 기능**: F020(목록 UI), F023(빈 상태), F024(반응형)
+  - **수락 기준**
+    - [x] 0건 / 1건 / 25건 / 120건 더미 모두 정상 렌더되고, 120건에서도 본문 가로 스크롤이 발생하지 않음
+    - [x] 375px에서 카드 레이아웃, 768px 이상에서 표 레이아웃으로 전환됨
+    - [x] 초장문 클라이언트명이 레이아웃을 깨뜨리지 않고 줄바꿈/말줄임 처리됨
+    - [x] 유효기간 `null`인 견적서가 오류 없이 "미지정"(문구 확정) 형태로 표시됨
+    - [x] 라이트/다크 모두 콘솔 에러·hydration 경고 0건
+    - [x] `npm run lint` / `npm run build` 무경고
+  - **변경 사항 요약**: `lib/invoice/fixtures.ts`에 `InvoiceSummary` 더미 4세트(0/1/25/120건, id prefix `...9000...`로 v1과 분리) 추가. `invoice-list-table.tsx`(v1 `invoice-items-table.tsx`와 동일한 CSS 전용 반응형 분기, 링크 복사는 Task 021 예정 disabled placeholder), `admin-empty-state.tsx` 신규 구현. `nextjs-app-developer` 서브에이전트로 구현하고 code-reviewer로 재검토. **code-reviewer 지적으로 발견/수정**: (1) `cacheComponents: true` 환경에서 `isInvoiceExpired()`의 `Date.now()` 때문에 `/admin` 정적 프리렌더가 빌드 타임에 실패 — `app/admin/(protected)/page.tsx`에 `connection()`(next/server) 호출을 추가해 해결(Next.js 공식 문서의 `unstable_noStore` 대체 패턴과 일치, `loading.tsx`가 이미 Suspense 경계를 제공하므로 별도 `<Suspense>` 불필요, `npm run build` 결과 `/admin`이 Partial Prerender로 정상 분류됨을 확인). (2) `AdminEmptyState`와 Task 019 `error.tsx`가 `AdminShell`의 `<main className="p-4 sm:p-6">` 안에서 다시 `p-6`을 중첩해 패딩이 이중 적용되던 문제 — 두 파일 모두 자체 패딩 제거. Playwright로 1280/375px·라이트/다크 스크린샷, 실제 Notion 견적서·`/admin/login` 회귀 없음 확인.
 
-- **Task 013: 인쇄·반응형 회귀 검증** ✅ - 완료
-  - ✅ 375 / 768 / 1280 / 1920px 화면 스크린샷 확보 및 시각 회귀 확인(실제 Notion 워크스페이스 견적서 INVOICE-2026-001 기준) — 768px 경계에서 표 레이아웃 전환, 1920px에서 `max-w-3xl` 중앙 정렬 유지, 레이아웃 깨짐 없음
-  - ✅ 인쇄 미디어 스크린샷을 항목 수(0 / 3 / 30 / 50개)별로 확보 — 실제 워크스페이스에는 해당 항목 수 데이터가 없어 Task012와 동일하게 임시 라우트(`app/print-test-temp/[count]`, 검증 후 삭제)로 합성 데이터 사용. 30개는 2페이지, 50개는 3페이지로 정상 분할, 매 페이지 헤더 반복·행 절단 없음(`page.pdf()`로 실제 PDF 생성해 확인)
-  - ✅ 라이트·다크 × 화면·인쇄 조합 매트릭스 점검 완료
-  - ✅ 접근성 점검: `columnheader` 역할로 표 헤더 연결 확인, "PDF 다운로드"/"다시 시도" 버튼 접근 가능한 이름 확인, 오류 화면 `role="alert"`(암묵적 assertive, 별도 `aria-live` 없음) 유지 확인, 키보드 탭 이동으로 페이지 내 유일한 인터랙티브 요소(다운로드 버튼) 및 503 화면의 "다시 시도" 버튼 포커스 도달·Enter로 활성화("재시도 중..." 상태 전환까지) 확인
-  - ⚠️ **라이브 검증 중 발견한 실제 버그와 수정**: 다크 모드에서 실제 `page.pdf()`로 다중 페이지 PDF를 생성하면(화면 스크린샷이 아닌 진짜 인쇄 결과물), 콘텐츠가 그려지지 않은 영역(페이지 여백, 마지막 페이지의 남은 공간)이 검정으로 렌더링되는 문제를 두 개의 독립 렌더러(Read 도구의 PDF 변환기, macOS Quick Look)로 재현 확인. 원인은 `next-themes`가 스크롤바/폼 컨트롤 정상 렌더링을 위해 다크 모드에서 `html.style.colorScheme = "dark"`를 인라인으로 설정하는데, 기존 `@media print` 오버라이드가 `--background` 등 CSS 커스텀 프로퍼티만 라이트로 강제하고 `color-scheme`는 그대로 두어, 실제로 그려진 요소 밖의 브라우저 기본 캔버스 배경이 다크 스킴을 따라 검정으로 채워졌기 때문. `app/globals.css`의 `@media print` 블록에 `html { color-scheme: light !important; }`를 추가해 수정, 다크 모드 0/3/50개 항목 PDF 및 실제 견적서 PDF 모두 흰 배경으로 재검증 통과
-  - **관련 기능**: F003, F013, F002
-  - **검증 요약**: `npx tsc --noEmit`/`npm run lint`/`npm run build` 무경고 통과. 임시 라우트(`app/print-test-temp/[count]`)와 캡처 산출물(`.playwright-mcp/task013/*`)은 검증 후 전부 삭제, `git status`로 `app/globals.css` 변경 외 잔여물 없음 확인. 503 재현을 위해 `.env.local`의 `NOTION_API_KEY`를 임시 무효값으로 교체하며 dev 서버를 재시작했고, 검증 직후 원래 키로 복구 후 재시작해 정상 상태로 되돌림(`diff`로 원본과 동일함 확인)
+- **Task 021: 클라이언트 조회 링크 복사 기능 구현 (F021)** ✅
 
-### Phase 5: 성능 최적화 및 배포 ✅
+  목록의 각 행에서 해당 견적서의 클라이언트 조회 링크를 클립보드로 복사합니다. 클라이언트 컴포넌트 + 브라우저 API를 다루는 **비즈니스 로직 Task**이므로 테스트 체크리스트가 필수입니다.
 
-> **PRD 상의 비기능 요구사항(NFR) 확인 결과**: `docs/PRD.md`에는 응답 시간·처리량·가용성 목표나 분석·모니터링 도구 도입 요구가 **명시되어 있지 않습니다**. 따라서 Phase 5는 "PRD에 없는 기능을 새로 만드는 단계"가 아니라, **① PRD 사용자 여정에 이미 적힌 동작 보장 ② 기준선 측정·기록 ③ 배포**만 다룹니다. 특히 발행자 여정 4단계의 *"이후 Notion에서 내용을 수정하면, 클라이언트가 다시 열람할 때 **항상 최신 데이터**로 표시됨"* 이 Phase 5에서 지켜야 할 유일한 명시적 품질 요구사항이며, 캐싱 전략 결정을 직접 구속합니다. 성능 대시보드, APM, 외부 로깅 SaaS, 알림 연동 등은 PRD 범위 밖이므로 도입하지 않습니다.
-
-- **Task 014: 성능·캐싱 전략 및 관측성 구성** ✅ - 완료
-
-  **캐싱 전략 선택지 (A/B/C)**
+  **복사할 URL의 기준 도메인 결정 (A/B/C)**
 
   | 선택지 | 내용 | 장점 | 단점/리스크 |
   |---|---|---|---|
-  | **A. dynamic 유지 (현행)** | `"use cache"` 미사용. 요청마다 Notion 2회 호출, PPR 셸 + `loading.tsx`로 체감 지연 완화 | PRD의 "항상 최신 데이터" 요구를 **무조건** 충족. 만료 뱃지(`isInvoiceExpired`)·금액 수정이 즉시 반영. 추가 코드 0 | 조회 1건마다 Notion 왕복이 TTFB에 그대로 반영. 동일 링크가 단시간에 대량 열람되면 Notion rate limit 접근 가능 |
-  | **B. `use cache` + `cacheLife` + `cacheTag`** | `getInvoiceById`에 `"use cache"` 적용, 짧은 revalidate 주기 + `cacheTag` 부여 | 반복 조회 시 Notion 호출 급감, TTFB 안정화 | **최신성이 revalidate 주기만큼 지연 → PRD 여정 4단계와 정면 충돌**. Notion → 앱 방향 webhook이 MVP 범위 밖이라 `revalidateTag` 무효화 트리거가 없음 |
-  | **C. 절충: 셸만 정적 + 데이터 dynamic** | 현재 PPR 동작 그대로 | A와 동일한 최신성 + 셸 즉시 응답 | 실질적으로 A와 동일 |
+  | **A. `window.location.origin` 사용** | 브라우저에서 현재 접속 중인 오리진 + `/invoice/{id}` | 추가 환경변수 0개, 코드 최소 | **localhost나 Preview 배포에서 복사하면 클라이언트가 열 수 없는 링크가 생성됨**(운영 사고 직결) |
+  | **B. 서버 전용 기준 URL 환경변수** | `SITE_URL`(서버 전용)을 서버 컴포넌트에서 읽어 각 행에 완성된 절대 URL을 props로 내려줌 | 어디서 복사해도 항상 프로덕션 링크. Notion `invoice_url` 포뮬러와 도메인이 일치 | 환경변수 1개 추가, 값 관리 필요 |
+  | **C. Notion `invoice_url` 포뮬러 값 사용** | Invoices DB의 기존 FORMULA 속성 값을 그대로 조회해 복사 | Notion과 100% 동일한 링크 보장 | 포뮬러 값 조회를 위한 스키마 확장 필요, 포뮬러가 비어 있거나 변경되면 목록이 깨짐. 도메인 하드코딩이 Notion 쪽에 있어 이전 시 두 곳을 고쳐야 함 |
 
-  - ✅ **결정: A(=C) 채택** — PRD에 캐싱을 정당화할 트래픽·성능 목표가 없고, "Notion 수정 후 재열람 시 항상 최신 데이터" 요구가 명시적이므로 dynamic을 그대로 유지. `lib/notion/invoice-repository.ts` 상단에 결정 근거를 주석으로 명문화해 이후 실수로 `"use cache"`가 추가되지 않게 함
-  - ✅ **Notion 호출 수 계측**: 임시 카운터를 주입해 실측 — 견적서 1건 조회(항목 3개, 페이지 크기 이하) 시 `pages.retrieve` 1회 + `dataSources.query` 1회로 **정확히 2회**, `generateMetadata`+페이지 본문 간 중복 없음(React `cache()` 정상 동작 재확인). 측정 후 임시 코드 완전 원복(`git diff`로 확인)
-  - ✅ **오류 로깅 구조화**: `app/invoice/[id]/page.tsx`의 503 catch를 `console.error("invoice_fetch_failed", { invoiceId, errorName, notionCode })` 한 줄로 정리(id는 앞 8자만, 클라이언트명·토큰·원본 스택 전문 미포함). `app/invoice/[id]/error.tsx`는 전체 error 대신 `error.digest`만 기록. 한 줄 개선으로 충분해 별도 `lib/observability/log.ts`는 만들지 않음(과설계 회피)
-  - ✅ **성능 기준선 측정**: `npm run build` 후 별도 포트(3002)에서 `next start`로 실제 견적서 페이지를 Playwright로 3회 측정(로컬 loopback 기준, 참고용) — **TTFB 중앙값 ≈ 7.4ms**, **LCP 중앙값 ≈ 616ms**(대부분 Notion 왕복 대기 시간). 참고 상한(LCP 2.5초) 대비 여유 있음. 프로덕션(실제 네트워크 지연 포함) 수치는 Task 015에서 재측정해 이 값과 대조
-  - ✅ **분석 도구 도입 여부**: Vercel Analytics/Speed Insights는 PRD에 요구가 없어 **도입하지 않음**으로 결정
-  - ✅ `npx tsc --noEmit` / `npm run lint` / `npm run build` 무경고 통과
+  - **권장: B** — A는 개발 중 실수로 `localhost:3000` 링크를 클라이언트에게 보내는 사고가 현실적으로 발생하고, C는 Notion 포뮬러 문자열에 의존성이 생겨 취약함. 구현 시 최종 결정과 근거를 이 표 아래에 기록할 것
+  - **최종 결정: B 채택**. `lib/admin/env.ts`에 `SITE_URL: z.string().url()`을 추가해 관리자 전용 환경변수로 관리(Notion 무관, `ADMIN_PASSWORD`/`ADMIN_SESSION_SECRET`과 같은 파일 — `lib/admin/env.ts`를 import하는 곳이 `app/admin/(protected)/page.tsx` 한 곳뿐임을 `grep`으로 확인해 Task 017류 사고 재발 위험 없음을 검증). `.env.local`에도 로컬 개발 중 항상 프로덕션 도메인(`https://nextjs-ex-2-rosy.vercel.app`)을 쓰도록 설정 — 이게 B안의 핵심 목적(어디서 복사해도 클라이언트가 열 수 있는 링크 보장)
+  - `lib/invoice/client-link.ts` 신설 — `buildInvoiceUrl(baseUrl, id)` 순수 함수(끝 슬래시 중복 제거, `normalizeInvoiceId` 적용). 서버/클라이언트 양쪽에서 쓸 수 있는 순수 함수로 두고 `server-only`를 붙이지 않음
+  - `components/admin/copy-link-button.tsx` — `'use client'`. `navigator.clipboard.writeText()` 호출 → 성공 시 sonner `toast.success("링크를 복사했습니다")`, 실패 시 `toast.error(...)` + 복사할 URL을 선택 가능한 텍스트로 노출하는 **폴백 경로** 제공
+  - **보안 컨텍스트 주의**: `navigator.clipboard`는 secure context(HTTPS 또는 `localhost`)에서만 존재합니다. 프로덕션(Vercel HTTPS)과 로컬 개발은 모두 만족하지만, `navigator.clipboard`가 `undefined`인 환경에서 **예외로 화면이 깨지지 않도록** 반드시 존재 여부를 확인한 뒤 호출
+  - 접근성: 버튼마다 고유한 접근 가능한 이름 부여(예: 견적서 번호를 포함한 `aria-label` — "INVOICE-2026-001 클라이언트 링크 복사") — 행이 20개면 "복사" 버튼 20개가 동일 이름이 되는 문제를 방지. 복사 결과는 sonner 토스트로 안내되며 토스트 자체의 라이브 리전 동작을 확인
+  - 시각 피드백: 클릭 직후 아이콘을 `Copy` → `Check`로 잠시 전환(2초 후 복귀) — 토스트를 놓친 경우에도 성공 여부를 알 수 있게
+  - 연타/다중 행 클릭 시 상태가 서로 섞이지 않도록 버튼별로 상태를 격리
 
-  - **관련 기능**: F001(조회 성능·최신성 측면), F012(장애 로깅 측면)
+  - **관련 파일**: `components/admin/copy-link-button.tsx`(신규), `lib/invoice/client-link.ts`(신규), `components/admin/invoice-list-table.tsx`, `app/admin/(protected)/page.tsx`, (B 채택 시) `lib/admin/env.ts`·`.env.example`
+  - **관련 기능**: F021
   - **수락 기준**
-    - [x] 캐싱 전략이 A/B/C 중 하나로 명시적으로 결정되고, 근거와 트레이드오프가 이 문서와 코드 주석 양쪽에 기록됨
-    - [x] 견적서 1건(항목 100개 이하) 조회 시 Notion API 호출이 **정확히 2회**이며, `generateMetadata`로 인한 중복 호출이 없음
-    - [x] Notion에서 견적서를 수정한 뒤 새로고침하면 **즉시** 반영됨
-    - [x] 서버 로그에 클라이언트명·API 토큰·원본 스택 전문이 남지 않고, 장애 원인 추적에 필요한 최소 정보(이벤트명·id 앞자리·Notion 오류 코드)는 남음
-    - [x] 프로덕션 빌드 기준 TTFB·LCP 기준선 수치가 기록됨
-    - [x] `tsc`/`lint`/`build` 전부 무경고
+    - [x] 기준 도메인 선택지가 A/B/C 중 하나로 명시적으로 결정되고 근거가 이 문서와 코드 주석 양쪽에 기록됨
+    - [x] 복사된 문자열이 `{기준도메인}/invoice/{32자 hex id}` 형식과 정확히 일치하고, 실제로 열면 해당 견적서가 조회됨
+    - [x] 클립보드 API를 사용할 수 없는 환경에서도 화면이 깨지지 않고 URL을 수동 복사할 수 있음
+    - [x] 행마다 복사 버튼의 접근 가능한 이름이 서로 구분됨
+    - [x] `npm run lint` / `npm run build` 무경고
 
   **테스트 체크리스트 (Playwright MCP)**
-  - [x] 정상: 프로덕션 빌드(`next build && next start`)에서 실제 견적서 조회 → 클라이언트명·항목·합계 정상 렌더, `browser_console_messages` 에러 0건
-  - [x] 정상: `browser_network_requests`로 브라우저 레벨 요청이 문서 1회 + 정적 자산뿐이고 불필요한 RSC 재요청이 없음
-  - [x] 정상: **최신성 검증** — 테스트용 견적서(INVOICE-2026-000-EMPTY)의 클라이언트명을 Notion API로 변경 후 재접속해 즉시 반영 확인, 검증 후 원래 값("빈 항목 테스트")으로 복원. Task 009에서 미검증으로 남겨둔 항목을 여기서 종결
-  - [x] 정상: `browser_evaluate` + `PerformanceObserver`(LCP)·`performance.getEntriesByType("navigation")`(TTFB)로 3회 측정해 기준선 기록
-  - [x] 실패: `NOTION_API_KEY`를 무효 값으로 교체(검증 후 즉시 원복) → 503 화면 표시, 서버 로그에 `invoice_fetch_failed { invoiceId: '3a726a4c', errorName: 'APIResponseError', notionCode: 'unauthorized' }`만 남고 토큰·클라이언트명·스택 전문 미노출 확인
-  - [x] 실패: **SDK `timeoutMs`를 임시로 1ms로 낮춰**(실제로 6초 지연을 재현 가능한 방법이 없어 대체) 모든 Notion 호출이 타임아웃하도록 강제 → 무한 로딩 없이 108ms 만에 503 화면으로 귀결됨을 확인(`errorName: 'RequestTimeoutError'`). 검증 후 5000으로 원복
-  - [x] 실패: 미존재(형식은 유효한) ID → 404 화면(Task 007/010 회귀 없음)
-  - [x] 엣지: **페이지네이션 검증** — 실제 워크스페이스에 100개 초과 견적서가 없어, 대신 `dataSources.query`에 임시로 `page_size: 2`를 지정해 실제 3항목 견적서(INVOICE-2026-001)를 2건+1건으로 강제 분할 수신 → `has_more`/`next_cursor` 루프가 실제 Notion 응답으로 정상 동작하고 항목 누락·중복 없이 3건 모두 렌더됨을 확인. 검증 후 `page_size` 제거(합성 데이터 임시 라우트 방식보다 실제 페이지네이션 코드 경로를 직접 검증할 수 있어 이 방식을 채택)
-  - [x] 엣지: 동일 견적서를 3개 탭(`browser_tabs`)에서 거의 동시에 열어 전부 정상 렌더, 429/503 없음 확인
-  - [x] 엣지: 캐싱 B안은 채택하지 않아(A 선택) **해당 없음**
-  - [x] 라이트/다크 × 375 / 1280px 4가지 조합 모두 콘솔 에러 0건
+  - [x] 정상: 복사 버튼 클릭 → `browser_evaluate`의 `navigator.clipboard.readText()`(또는 `writeText` 스파이)로 실제 클립보드 값이 기대 URL과 정확히 일치함을 확인
+  - [x] 정상: 복사한 URL로 `browser_navigate` → 해당 견적서 조회 페이지가 정상 렌더(엔드투엔드로 링크가 유효함을 증명)
+  - [x] 정상: 성공 토스트 문구가 노출되고 일정 시간 후 사라짐, 버튼 아이콘이 `Check`로 전환됐다 복귀함
+  - [x] 실패: `browser_evaluate`로 `navigator.clipboard.writeText`가 reject하도록 스텁 → 오류 토스트 + 수동 복사 폴백이 노출되고, 페이지가 오류 화면으로 이탈하지 않음
+  - [x] 실패: `navigator.clipboard` 자체를 `undefined`로 만든 상태에서 클릭 → 콘솔 미처리 예외 없이 폴백 경로로 처리됨
+  - [x] 엣지: 서로 다른 3개 행의 복사 버튼을 연속 클릭 → 마지막 클릭한 행의 URL이 클립보드에 남고, 다른 행의 "복사됨" 상태가 잘못 켜지지 않음
+  - [x] 엣지: 같은 버튼을 빠르게 5회 연타 → 토스트가 중첩되어도 화면이 깨지지 않고 클립보드 값이 정확함
+  - [x] 엣지: 375px 모바일 뷰포트(카드 레이아웃)에서도 복사 버튼이 보이고 동작함
+  - [x] `browser_console_messages`에 에러 0건
+  - **변경 사항 요약**: `lib/invoice/client-link.ts`(`buildInvoiceUrl`), `components/admin/copy-link-button.tsx`(clipboard + Copy/Check 전환 + readOnly input 폴백 + 행별 고유 `aria-label`) 신규 구현, `invoice-list-table.tsx`의 `CopyLinkButtonPlaceholder` 제거하고 실제 컴포넌트로 교체. `lib/admin/env.ts`에 `SITE_URL` 추가(B안 채택), `.env.local`엔 로컬에서도 프로덕션 도메인 사용. `nextjs-app-developer` 서브에이전트로 구현, 제가 clipboard 성공/실패 spot-check, `code-reviewer`로 재검토. **code-reviewer 지적으로 수정**: (1) 복사 상태 타이머가 컴포넌트 언마운트 시 정리되지 않던 누수를 `useEffect` cleanup으로 해결(Task 023/024에서 목록이 재조회되며 행이 언마운트될 수 있어 실질적 위험). (2) `Copy`/`Check` 아이콘에 `aria-hidden="true"` 추가해 `login-form.tsx`의 기존 관례와 통일. (3) `client-link.ts`의 `server-only` 미적용 근거 주석이 실제 호출부(서버 컴포넌트뿐)와 어긋나 있어 정정. `docs/ROADMAP.md` 자체 갱신 누락도 code-reviewer가 지적해 이번에 함께 반영.
 
-  - **검증 요약**: `npx tsc --noEmit`/`npm run lint`/`npm run build` 무경고 통과. 테스트 체크리스트 11종 전부 Playwright MCP + 실제 Notion 워크스페이스로 라이브 검증. 모든 임시 계측/설정 변경(`__tempCallCount` 카운터, `page_size: 2`, `timeoutMs: 1`, `.env.local`의 `NOTION_API_KEY`, INVOICE-2026-000-EMPTY의 `client_name`)은 검증 직후 원복하고 `git diff`/`git status`로 잔여물 없음을 확인. 최종적으로 영구 반영된 코드 변경은 `lib/notion/invoice-repository.ts`(캐싱 결정 주석), `app/invoice/[id]/page.tsx`·`app/invoice/[id]/error.tsx`(구조화 로깅) 3개 파일뿐
+### Phase 8: 접근 제어 및 Notion 실데이터 연동
 
-- **Task 015: Vercel 배포 및 릴리스 점검** ✅ - 완료
+- **Task 022: 비밀번호 게이트 구현 (F022)** ✅
 
-  - ✅ **Vercel 프로젝트 연결**: `vercel login`(사용자 직접 인증) → `vercel link --yes`로 GitHub 저장소(`archy712/nextjs-ex-2`)와 동일 이름의 기존 프로젝트(`archy2/nextjs-ex-2`)에 연결됨, `vercel git connect`로 GitHub 연동 확인(이미 연결되어 있었음 — 이후 `main` 브랜치에 push하면 자동 배포). Framework Preset은 Next.js로 자동 인식(`Detected Next.js version: 16.2.12`)
-  - ✅ **환경변수**: `vercel env ls`로 `NOTION_API_KEY`, `NOTION_ITEMS_DATA_SOURCE_ID`가 Production·Preview 양쪽에 이미 암호화 등록되어 있음을 확인(둘 다 `NEXT_PUBLIC_` 미사용)
-  - ⚠️ **라이브 검증 중 발견한 실제 문제와 수정**: `vercel link --yes`가 연결한 기존 프로젝트의 프로덕션 배포가 **현재 로컬 코드보다 오래된 버전**이었음(배포된 HTML의 다운로드 버튼에 `print:hidden` 클래스가 없고 클릭해도 `window.print()`가 호출되지 않음 — Task012 이전 상태로 추정). `npx vercel --prod`로 현재 코드베이스를 명시적으로 재배포해 해결하고, 재배포 후 `print:hidden` 클래스 존재 및 `window.print` 스텁 호출을 재검증함. **프로덕션 배포 후에는 반드시 렌더링된 HTML이 최신 소스와 일치하는지 직접 확인해야 한다**는 교훈을 남김(자동 링크된 기존 프로젝트를 과신하지 말 것)
-  - ✅ **Notion Invoices DB의 URL Formula 속성**: PRD에 계획만 되어 있고 실제로 생성된 적이 없었음(`docs/PRD.md`의 "Notion이 페이지 ID 기반 조회 URL을 수식(Formula) 속성으로 자동 계산" 요구사항이 미구현 상태였음을 이번에 발견) → `invoice_url` FORMULA 속성을 신규 생성: `"https://nextjs-ex-2-rosy.vercel.app/invoice/" + id()`. Notion MCP가 formula/rollup 계산값을 API로 노출하지 않아(`total_amount`와 동일하게 `<omitted />`/`formulaResult://` 참조로만 반환) 실제 계산된 문자열은 API로 재확인 불가 — 사용자가 Notion UI 스크린샷으로 확인, 3건 모두 `https://nextjs-ex-2-rosy.vercel.app/invoice/<32자리 hex id>` 형식으로 정확히 계산됨을 확인함
-  - ✅ **문서 갱신**: `README.md` — PDF 생성 방식을 `window.print()` + 인쇄 전용 CSS로 정정(`@react-pdf/renderer` 오기 제거), "`use cache` 캐싱"·"Notion rate limit 대응 캐싱" 서술 제거(Task 014 결정과 일치하도록), 개발 상태 체크리스트를 실제 완료 Phase에 맞게 갱신, "Notion 워크스페이스 설정" 절 신규 추가(통합 생성 → DB 공유 → data source ID 확인 → `.env.local` 설정 절차). `CLAUDE.md` — "아직 미구현" 문구 제거, "Notion 연동 운영 주의사항" 절 추가(환경변수, `property-names.ts` 동기화, 캐싱 미사용 결정 요약)
-  - ✅ **프로덕션 스모크 테스트**: 실제 배포 URL(`https://nextjs-ex-2-rosy.vercel.app`)에서 아래 테스트 체크리스트 전부 라이브 검증
-  - ✅ **성능 대조**: 프로덕션 TTFB 중앙값 ≈ 9.7ms, LCP 중앙값 ≈ 596ms — Task 014의 로컬 기준선(TTFB ≈ 7.4ms, LCP ≈ 616ms)과 유의미한 차이 없음
+  `/admin` 영역을 서버 전용 환경변수의 단일 비밀번호로 보호합니다. **인증 관련 비즈니스 로직이므로 테스트 체크리스트가 필수이며, 이 Task가 통과하기 전에는 `main` 병합·프로덕션 배포를 하지 않습니다.**
 
-  - **관련 기능**: 전체(F001~F013) 프로덕션 검증
+  - `lib/admin/session.ts` 신설(`import "server-only"`):
+    - `verifyPassword(input)` — `node:crypto`의 `timingSafeEqual`로 **타이밍 안전 비교**(길이가 다르면 먼저 해시를 거쳐 비교해 길이 노출도 방지). 단순 `===` 비교 금지
+    - `createSessionCookieValue()` — `HMAC-SHA256(ADMIN_SESSION_SECRET, 만료시각)` 서명 토큰(`{expiresAt}.{signature}` 형식). JWT 라이브러리를 새로 설치하지 않는다(의존성 추가 대비 이득 없음)
+    - `verifySession()` — 쿠키 읽기 → 서명 검증 → 만료 확인. **이 함수가 인가 판정의 유일한 진실 공급원**
+    - 쿠키 옵션: `httpOnly: true`, `sameSite: "lax"`, `secure: process.env.NODE_ENV === "production"`, `path: "/"`, `maxAge` 7일(값은 구현 시 확정 후 기록)
+  - `lib/admin/actions.ts` 신설(`'use server'`):
+    - `loginAction(prevState, formData)` — Zod로 입력 검증 → `verifyPassword` → 성공 시 `cookies().set(...)` 후 `/admin`으로 `redirect`, 실패 시 **동일한 일반 오류 메시지** 반환. 실패 시에도 응답 시간 차이가 크게 나지 않도록 주의
+    - `logoutAction()` — 쿠키 삭제 후 `/admin/login`으로 `redirect`
+  - `proxy.ts`(루트, **`middleware.ts` 아님**) — `matcher: ["/admin/:path*"]`로 한정. `/admin/login` 자체는 함수 내부에서 예외 처리. **[구현 중 계획 변경]** 최초엔 이 문서 원안대로 쿠키 **존재 여부만** 확인했으나, `(protected)` 세그먼트가 `cacheComponents`(PPR) 대상이라 정적 셸이 먼저 200으로 스트리밍되고 그 다음에야 `page.tsx`의 `verifySession()` 실패가 감지되어, 위조/만료 쿠키에 대해 진짜 307이 아니라 클라이언트 전용 소프트 리다이렉트만 발생하는 문제가 실제로 재현됨(curl 등 비-JS 클라이언트는 로그인 화면으로 이동하지 않고 AdminShell 뼈대가 담긴 200 응답에 머무름 — 상세 원인은 아래 변경 사항 요약 참고). 이를 막기 위해 proxy가 **서명(HMAC)·만료까지 검증**하도록 강화했다(`lib/admin/session-token.ts`의 순수 함수 재사용). `verifySession()`은 여전히 심층 방어로 유지
+  - `app/admin/(protected)/layout.tsx` — `verifySession()`을 호출해 실패 시 `redirect("/admin/login")`. **proxy를 우회해 직접 요청이 들어와도 여기서 반드시 차단**됨
+  - Task 019의 스텁 폼을 실제 `loginAction`에 연결, 셸의 로그아웃 버튼을 `logoutAction`에 연결
+  - 로그인 성공 후 원래 가려던 경로로 되돌리는 `returnTo` 처리는 **도입하지 않는다**(보호 경로가 `/admin` 하나뿐이라 불필요 — 과설계 회피). 이 판단을 주석에 남길 것
+  - 로그인 시도 실패 로그는 `console.warn("admin_login_failed", { at })` 수준으로만 남기고 **입력된 비밀번호·해시·환경변수 값을 절대 로그에 남기지 않음**
+  - 로그인 페이지에도 `robots: noindex` 상속 확인
+
+  - **관련 파일**: `proxy.ts`(신규, 루트), `lib/admin/session.ts`(신규), `lib/admin/actions.ts`(신규), `lib/admin/env.ts`, `app/admin/(protected)/layout.tsx`, `components/admin/login-form.tsx`, `components/admin/admin-shell.tsx`
+  - **관련 기능**: F022
   - **수락 기준**
-    - [x] Production 배포가 성공하고, 실제 도메인의 견적서 링크로 조회·PDF 저장이 동작함
-    - [x] Notion Formula 속성이 생성되고, 계산된 링크가 정확함을 사용자가 육안으로 확인함
-    - [x] 프로덕션 응답·번들 어디에도 Notion 토큰이 노출되지 않음
-    - [x] `README.md`/`CLAUDE.md`가 실제 구현과 일치함(특히 PDF 생성 방식과 캐싱 전략)
-    - [x] 릴리스 태그가 생성되고 로드맵 전 Phase가 ✅로 마감됨
+    - [x] 비밀번호·세션 시크릿이 클라이언트 번들·HTML·RSC 페이로드 어디에도 등장하지 않음(빌드 산출물 `grep`으로 확인)
+    - [x] 세션 쿠키가 `HttpOnly`이며 프로덕션 빌드에서 `Secure` 플래그가 설정됨
+    - [x] 비밀번호 비교가 타이밍 안전 함수로 수행됨
+    - [x] proxy를 우회해도(직접 RSC 요청 등) `(protected)` 레이아웃에서 차단됨
+    - [x] `/invoice/[id]`·`/`·전역 404는 **로그인 없이 그대로 접근 가능**(무인증 유지 회귀 없음)
+    - [x] `npx tsc --noEmit` / `npm run lint` / `npm run build` 무경고
 
   **테스트 체크리스트 (Playwright MCP)**
-  - [x] 정상: 프로덕션 URL(`https://nextjs-ex-2-rosy.vercel.app`)에서 실제 견적서 조회 및 PDF 저장 플로우 성공(`window.print` 스텁으로 호출 1회 확인, 375px 모바일 뷰포트에서도 재확인)
-  - [x] 실패: 프로덕션에서 미존재(형식은 유효한) ID → 404 확인. Notion 장애(503) 시나리오는 Task014에서 동일 코드로 이미 철저히 검증됨 — 실제 프로덕션 서비스의 `NOTION_API_KEY`를 일부러 무효화하는 것은 잠재적 실사용자에게 실제 장애를 유발하는 행위라 판단해 생략(대신 Preview 배포로 무효 키를 테스트하는 방안도 검토했으나, Preview도 동일 실제 Notion 워크스페이스를 가리켜 리스크가 동일해 최종 생략)
-  - [x] 엣지: 375px 모바일 실제 뷰포트에서 조회·`window.print` 호출 정상
-  - [x] 프로덕션 응답 헤더·HTML에 `NOTION_API_KEY` 값이나 변수명 노출 없음(`curl`로 직접 grep 확인)
-  - [x] 엣지: Preview 배포(`vercel deploy`, Deployment Protection 우회는 `vercel curl`로 인증)에서도 동일 플로우 동작 확인 — Preview 환경변수 등록 누락 없음
-  - [x] 프로덕션 빌드 기준 TTFB·LCP가 Task 014 로컬 기준선과 크게 어긋나지 않음(위 성능 대조 참고)
+  - [x] 정상: 올바른 비밀번호 입력 → `/admin`으로 리다이렉트되고 목록 화면 진입, 새로고침·재방문 시 다시 묻지 않음(세션 유지)
+  - [x] 정상: 로그아웃 클릭 → `/admin/login`으로 이동하고, 이후 `/admin` 직접 접근 시 다시 로그인 화면으로 리다이렉트
+  - [x] 실패: 잘못된 비밀번호 → "비밀번호가 올바르지 않습니다"만 표시되고, 힌트·내부 정보·스택이 노출되지 않음
+  - [x] 실패: 빈 비밀번호 제출 → 서버 액션이 예외 없이 검증 오류를 반환
+  - [x] 실패: 로그인하지 않은 상태로 `/admin` 직접 접근 → 로그인 화면으로 리다이렉트되고, **`browser_network_requests`로 응답 본문에 견적서 데이터가 단 한 건도 포함되지 않음**을 확인
+  - [x] 엣지: 쿠키 값을 `browser_evaluate`로 임의 문자열로 변조 → 서명 검증 실패로 로그인 화면으로 리다이렉트
+  - [x] 엣지: 쿠키의 만료 시각 부분만 미래로 조작 → 서명 불일치로 거부됨(서명이 만료 시각을 실제로 보호하는지 검증)
+  - [x] 엣지: `ADMIN_PASSWORD`를 임시로 다른 값으로 교체(검증 후 원복) → 기존 세션 쿠키의 동작과 새 로그인 동작을 확인하고 결과를 기록
+  - [x] 엣지: 로그인 상태에서 `/invoice/[id]`를 열어도 관리자 UI가 섞여 나오지 않음
+  - [x] `browser_console_messages`에 에러 0건
+  - **변경 사항 요약**: `lib/admin/session.ts`(`verifyPassword`/`createSessionCookieValue`/`verifySession`), `lib/admin/actions.ts`(`loginAction`/`logoutAction`), `proxy.ts` 신규 구현. `nextjs-app-developer` 서브에이전트로 구현, 제가 `.next/static` 시크릿 grep·Playwright 재검증 후 `code-reviewer`(보안 중심)로 리뷰했습니다.
+    - **[Critical] 발견 및 수정**: `code-reviewer`가 프로덕션 빌드(`next build && next start`)로 실제 재현 — 이름만 맞고 서명이 무효한 `admin_session` 쿠키로 `/admin`에 접근하면 진짜 307이 아니라 **HTTP 200 + AdminShell 뼈대**(제목/로그아웃 버튼, 견적서 데이터는 없음)가 응답됨. 원인: `(protected)` 세그먼트가 `cacheComponents`(PPR) 대상이라 `layout.tsx`의 정적 셸이 먼저 200으로 스트리밍을 시작하고, 그 다음에야 `page.tsx`의 `verifySession()` 실패로 `redirect()`가 호출되는데 이 시점엔 HTTP 상태 코드를 이미 확정한 뒤라 Next.js가 클라이언트 전용 소프트 리다이렉트(RSC 스트림의 메타 신호)로만 대응함(Next.js 공식 문서 `functions/redirect.md` "streaming context" 절에 명문화된 동작 — 버그 아님). curl 등 비-JS 클라이언트는 리다이렉트되지 않고 그 200 응답에 머무름.
+    - **수정**: `lib/admin/session-token.ts`(신규, 순수 함수, `server-only`/`next/headers` 미의존)로 서명·만료 검증 로직을 분리해 `proxy.ts`가 재사용하도록 강화 — proxy가 **서명·만료까지** 검증해 위조/만료 쿠키도 렌더링이 시작되기 전에 진짜 307로 걸러냄(`lib/admin/env.ts`의 eager Zod 검증은 끌어오지 않음 — `ADMIN_SESSION_SECRET`만 `process.env`에서 직접 읽음). `verifySession()`(`lib/admin/session.ts`)은 proxy 우회(matcher 설정 실수, 향후 리팩터링) 대비 심층 방어로 유지. 수정 후 프로덕션 빌드로 재검증(garbage 쿠키 → 307 확인)하고 재차 `code-reviewer` 검증 완료.
+    - 그 외 반영: 서명 버퍼를 `hex` 인코딩으로 명시적 디코딩(Suggestion), 로그인 비밀번호 입력에 `.max(200)` 상한 추가(Suggestion).
 
-  - **검증 요약**: `npx tsc --noEmit`/`npm run lint`/`npm run build` 무경고 통과(배포 전 로컬 확인). Vercel 프로덕션·Preview 배포 모두 라이브 검증 완료. 배포 과정에서 기존 연결 프로젝트가 구버전 코드로 서빙되고 있던 실제 문제를 발견해 재배포로 수정했고, PRD에 계획만 되어 있던 Notion URL Formula 속성을 이번에 실제로 생성함. `README.md`/`CLAUDE.md`의 실구현과 어긋나던 서술을 정정. Git 저장소에 `main` push는 아직 하지 않음(별도 확인 후 진행 예정) — Vercel Git 연동은 이미 되어 있어 이후 push 시 자동 배포됨
+- **Task 023: 견적서 목록 조회 계층 구현 (F020)**
+
+  Notion Invoices 데이터소스에서 전체 견적서를 조회하는 서버 전용 데이터 계층입니다.
+
+  - `lib/notion/invoice-list-repository.ts` 신설(`import "server-only"`) — `listInvoices(): Promise<InvoiceSummary[]>`. **v1의 `invoice-repository.ts`를 수정하지 않고 새 파일로 분리**(단건 조회의 캐싱 결정 주석과 오류 분류 로직을 건드리지 않기 위함)
+  - `notion.dataSources.query({ data_source_id: NOTION_INVOICES_DATA_SOURCE_ID, sorts, start_cursor })` 사용. **`databases.query`가 아니라 `dataSources.query`**(v1 규약)
+  - 정렬: `created_time` 내림차순(최근 발행 견적서가 위로)을 기본으로 하되, `valid_until` 기준이 더 유용한지 구현 시 판단해 결정과 근거를 기록
+  - **페이지네이션**: `has_more`/`next_cursor` do-while 루프로 전 견적서를 수집. **무한 루프 방지 가드**(최대 반복 횟수 또는 누적 건수 상한)를 넣고, 상한 초과 시 조용히 잘라내지 말고 로그를 남길 것
+  - 응답 매핑은 기존 `notionInvoicePageSchema`(Task 017 시점 기준)를 **재사용**하고, 속성 이름은 `INVOICE_PROPERTY_NAMES`에서만 가져옴. 새 속성 상수를 만들지 않음
+  - **합계 금액 처리 결정**: 목록에서는 항목을 재조회하지 않고 `total_amount`(Rollup Sum) 값을 그대로 사용한다. 단건 조회(v1)는 항목 합계와 교차 검증하지만, 목록에서 견적서마다 항목을 조회하면 N+1 호출(20건 → 21회)이 발생해 rate limit 위험과 지연이 커진다. rollup이 `null`인 경우 0원이 아니라 **"—"(미계산)** 으로 표시해 잘못된 금액을 보여주지 않는다. 이 트레이드오프를 파일 상단 주석에 명시할 것
+  - 오류 처리: 목록 조회 실패는 특정 견적서의 "존재하지 않음"이 아니므로 **절대 404로 분류하지 않고** 항상 `InvoiceUnavailableError`(503 안내)로 변환. v1 `classifyItemsQueryError`와 동일한 사유이며, 필요하면 해당 오류 클래스를 재사용(import)하되 v1 파일을 수정하지는 않음
+  - **개별 행 파싱 실패 정책 결정**: 견적서 한 건의 스키마 검증이 실패했을 때 전체 목록을 503으로 떨굴지, 해당 행만 건너뛰고 경고 로그를 남길지 결정한다. 권장은 **해당 행만 건너뛰고 경고 로그** — 견적서 100건 중 1건의 속성이 비어 있다고 목록 전체를 못 보는 것은 내부 도구로서 부적절함. 결정과 근거를 기록할 것
+  - **캐싱 전략 결정**: 기본은 v1과 동일하게 `"use cache"` 미사용(dynamic)이다. 관리자 레이아웃이 `cookies()`를 읽어 어차피 동적 렌더링되며, "Notion에서 견적서를 추가한 직후 목록에 보여야 한다"는 기대가 자연스럽기 때문. 단 **v1의 `/invoice/[id]` 캐싱 미사용 결정이 이 경로까지 구속하지는 않으므로**, 목록 조회가 체감상 느리면 `"use cache"` + 짧은 `cacheLife` 도입을 재검토하고 결정 근거를 기록할 것
+
+  - **관련 파일**: `lib/notion/invoice-list-repository.ts`(신규), `lib/notion/env.ts`, `lib/notion/property-names.ts`(읽기만), `lib/invoice/schema.ts`(필요 시 목록 전용 스키마 확장), `types/invoice.ts`
+  - **관련 기능**: F020
+  - **수락 기준**
+    - [x] 실제 Notion 워크스페이스의 견적서 전건이 누락·중복 없이 반환됨
+    - [x] 페이지 크기를 초과하는 상황에서 `has_more`/`next_cursor` 루프가 실제 Notion 응답으로 동작함
+    - [x] 목록 조회 오류가 어떤 경우에도 404로 분류되지 않음
+    - [x] 합계 금액·개별 행 파싱 실패·캐싱 3가지 결정이 이 문서와 코드 주석 양쪽에 기록됨
+    - [x] Notion API 호출 수가 **견적서 건수와 무관하게 페이지네이션 횟수와 동일**(항목 재조회로 인한 N+1이 없음)
+    - [x] `npx tsc --noEmit` / `npm run lint` / `npm run build` 무경고
+
+  **테스트 체크리스트 (Playwright MCP)**
+  > 이 Task 시점에는 화면 연결이 아직 없으므로, v1 Task 008에서 쓴 방식대로 **임시 Route Handler를 만들어 실제 Notion에 라이브 검증한 뒤 반드시 삭제**하고 `git status`로 잔여물이 없음을 확인합니다.
+  - [x] 정상: 실제 워크스페이스의 견적서 전건 조회 → 건수·견적서 번호·클라이언트명·합계가 Notion 화면과 일치
+  - [x] 정상: 정렬 순서가 결정한 규칙과 일치
+  - [x] 실패: `NOTION_API_KEY`를 무효 값으로 교체(검증 후 즉시 원복) → `InvoiceUnavailableError`로 분류되고 404가 아님
+  - [x] 실패: `NOTION_INVOICES_DATA_SOURCE_ID`를 존재하지 않는 ID로 교체(검증 후 원복) → 503 계열로 분류되고 오류 메시지에 토큰·내부 경로가 없음
+  - [x] 실패: SDK `timeoutMs`를 임시로 1ms로 낮춰 타임아웃 강제(v1 Task 014에서 검증된 방법) → 무한 대기 없이 오류로 귀결
+  - [x] 엣지: `dataSources.query`에 임시로 `page_size: 2`를 지정해 실제 응답을 강제 분할(v1 Task 014에서 검증된 방법) → 페이지네이션 루프가 누락·중복 없이 전건을 수집
+  - [x] 엣지: 견적서 0건 상황(필터로 재현하거나 빈 데이터소스로 대체) → 빈 배열을 반환하고 예외를 던지지 않음
+  - [x] 엣지: 속성이 비어 있는 견적서(클라이언트명 공백, `valid_until` 미지정, `total_amount` rollup `null`)를 실제로 만들어(검증 후 정리) 결정한 정책대로 처리되는지 확인
+  - [x] 임시 검증 코드·데이터가 전부 원복/삭제되었음을 `git diff`·`git status`로 확인
+  - **변경 사항 요약**: `lib/notion/invoice-list-repository.ts` 신규 구현(`listInvoices()`) — `notion.dataSources.query`(`created_time` 내림차순, `page_size: 100`)로 Invoices 데이터소스를 `has_more`/`next_cursor` 루프로 전건 수집(최대 50회/약 5,000건 가드, 초과 시 `console.warn`). `notionInvoicePageSchema`(Task 017)를 재사용해 매핑하고, `InvoiceUnavailableError`(v1 `invoice-repository.ts`에서 import, 파일은 수정 안 함)로만 오류를 분류(404 없음). **결정 3가지**: (1) 정렬은 `created_time` 내림차순(발행 직후 확인 니즈 우선), (2) 합계는 `total_amount` rollup을 그대로 사용해 N+1 방지하고 null이면 null 그대로 반환(0원과 구분), (3) 개별 행 파싱 실패는 skip+경고 로그. `types/invoice.ts`의 `InvoiceSummary.totalAmount`를 `number | null`로, `lib/invoice/format.ts`의 `formatCurrency`를 `number | null`(null → "—") 수용하도록 확장 — v1 `Invoice`/`invoice-total.tsx` 호출부에는 영향 없음(`npx tsc --noEmit` 확인). 실제 Notion 워크스페이스(3건)로 정상 조회·정렬 확인, `NOTION_API_KEY`/`NOTION_INVOICES_DATA_SOURCE_ID` 무효화·`timeoutMs=1` 강제 타임아웃 모두 `InvoiceUnavailableError`로 귀결 확인(검증 후 즉시 원복), `page_size:2` 강제 분할로 4건 페이지네이션 무손실 확인, 임시 견적서(항목 0개)로 rollup Sum이 빈 relation에서도 `null`이 아닌 `0`을 반환함을 실측(테스트 데이터는 검증 후 Notion에서 archive 처리), 존재할 수 없는 필터로 0건 케이스 확인. 임시 Route Handler(`app/api/debug-invoices`)와 `.env.local`/`lib/notion/client.ts`(`timeoutMs`) 임시 변경은 전부 검증 후 원복·삭제(`git status`로 잔여물 없음 확인). **code-reviewer 지적으로 수정**: (1) 조회된 행이 1건 이상인데 전부 파싱 실패 시 빈 배열(="견적서 0건"으로 오인) 대신 `InvoiceUnavailableError`로 승격하도록 가드 추가(전면적 스키마 드리프트와 "일부 결측"을 구분), (2) `page_size: 100`을 명시해 페이지네이션 가드 주석의 전제(Notion 기본값 100)와 코드를 일치, (3) rollup null 관련 주석에 실측 근거(Sum 함수는 빈 relation에서 0 반환)와 함수 변경 시 재검증 필요성을 명시. 수정 후 재차 라이브 검증(3건 정상 반환) 완료.
+
+- **Task 024: 목록 페이지 실데이터 연결 및 오류 분기 (F020 / F023)**
+
+  - `app/admin/(protected)/page.tsx`에서 `fixtures` 제거 → `listInvoices()` 결과를 Task 020 컴포넌트에 주입
+  - `InvoiceUnavailableError`는 v1 `/invoice/[id]`와 **동일한 방식**으로 페이지 내부에서 포착해 `InvoiceErrorState variant="unavailable"` + 재시도 버튼을 렌더(기존 `components/invoice/invoice-error-state.tsx`·`invoice-retry-button.tsx` 재사용, 새 오류 컴포넌트를 만들지 않음). 관리자 화면 맥락에 맞게 문구를 조정해야 하면 컴포넌트를 고치지 말고 props/슬롯으로 처리
+  - 관리자 목록에는 "존재하지 않는 견적서" 개념이 없으므로 **404 분기를 만들지 않는다**(빈 목록은 오류가 아니라 `admin-empty-state`)
+  - 오류 로깅은 v1 Task 014 형식을 따라 `console.error("admin_invoice_list_failed", { errorName, notionCode })` 한 줄로 구조화 — **클라이언트명·토큰·원본 스택 전문 금지**
+  - 링크 복사 버튼에 실제 견적서 id를 연결하고, Task 021에서 결정한 기준 도메인으로 절대 URL을 생성
+  - `loading.tsx` 스켈레톤이 실제 데이터 로딩 중 표시되는지 확인(`cacheComponents` PPR 셸 동작)
+  - 로그아웃 후 재로그인해도 목록이 정상 재조회되는지 확인
+
+  - **관련 파일**: `app/admin/(protected)/page.tsx`, `app/admin/(protected)/loading.tsx`, `components/admin/invoice-list-table.tsx`, `components/admin/copy-link-button.tsx`, `components/invoice/invoice-error-state.tsx`(재사용)
+  - **관련 기능**: F020, F021(실 id 연결), F023
+  - **수락 기준**
+    - [x] 실제 Notion 견적서 전건이 화면에 표시되고 값이 Notion과 일치함
+    - [x] Notion 장애 시 목록 자리에 503 안내가 표시되고, 재시도로 복구 가능함
+    - [x] 견적서 0건일 때 오류가 아닌 빈 상태 안내가 표시됨
+    - [x] 서버 로그에 토큰·클라이언트명·스택 전문이 남지 않음
+    - [x] `npx tsc --noEmit` / `npm run lint` / `npm run build` 무경고
+
+  **테스트 체크리스트 (Playwright MCP)**
+  - [x] 정상: 로그인 → 목록에 실제 견적서가 렌더되고, 각 행의 값이 Notion 데이터와 일치
+  - [x] 정상: 목록에서 복사한 링크로 이동 → 해당 견적서 조회 페이지가 정상 렌더(관리자 → 클라이언트 경로 연결 확인)
+  - [x] 정상: Notion에서 견적서를 1건 추가/수정한 뒤 목록을 새로고침 → 결정한 캐싱 전략대로 반영됨(즉시 반영 또는 기록한 지연 내 반영). 검증에 사용한 데이터는 원복
+  - [x] 실패: `NOTION_API_KEY` 무효화(검증 후 원복) → 목록 자리에 503 안내, 404 아님. HTML·콘솔에 토큰·스택 미노출(**프로덕션 빌드 기준으로 확인** — `next dev`는 서버 로그를 브라우저 콘솔로 미러링하므로 판정 근거로 쓰지 않음)
+  - [x] 실패: 503 상태에서 "다시 시도" 클릭 → `browser_network_requests`로 실제 재요청 발생 확인, 복구 후 정상 목록으로 전환
+  - [x] 엣지: 견적서 0건 → 빈 상태 안내 표시(오류 화면 아님)
+  - [x] 엣지: 인위적 지연을 임시 주입(검증 후 원복)해 `loading.tsx` 스켈레톤이 표시된 뒤 목록으로 전환됨을 확인
+  - [x] 엣지: 목록을 연속 3회 새로고침해도 결과가 일관되고 중복 요청이 발생하지 않음
+  - [x] `browser_console_messages`에 에러 0건(라이트/다크 모두)
+  - **변경 사항 요약**: `app/admin/(protected)/page.tsx`에서 `invoiceSummaryFixtures`(더미)를 제거하고 `listInvoices()`(Task 023)로 교체. 오류 처리는 v1 `app/invoice/[id]/page.tsx`와 동일한 패턴 — `InvoiceUnavailableError`만 잡아 `InvoiceErrorState variant="unavailable"` + `InvoiceRetryButton`을 렌더하고 그 외 예외는 다시 throw해 `error.tsx`(Task 018)로 흘러가게 둠. 관리자 목록에는 "존재하지 않는 견적서" 개념이 없어 404 분기는 만들지 않았고, 빈 배열은 `AdminEmptyState`로 처리(기존 컴포넌트 재사용, 신규 컴포넌트 없음). 로깅은 `console.error("admin_invoice_list_failed", { errorName, notionCode })`로 v1 Task 014 형식과 동일하게 구조화(클라이언트명·토큰·스택 미노출). 실제 Notion 워크스페이스(3건)로 로그인→목록→링크 복사→`/invoice/[id]` 이동까지 종단 검증, `NOTION_API_KEY` 무효화(개발/프로덕션 빌드 양쪽) → 503 표시 + 재시도 시 실제 재요청(`/admin?_rsc=...`) 확인 후 정상 복구, 존재할 수 없는 필터로 0건 케이스 확인, 브라우저 스트리밍 `fetch().body.getReader()`로 응답 첫 청크에 `loading.tsx` 스켈레톤(`role="status"`)이 데이터보다 먼저 도착함을 실측, 375px/1280px·라이트/다크 스크린샷 확인(콘솔 에러 0건), 로그아웃→재로그인 후 목록 재조회 정상, 연속 3회 새로고침 결과 일관, 실제 견적서 1건의 `client_name`을 임시로 수정한 뒤 새로고침 시 "use cache" 미사용 결정대로 즉시 반영됨을 확인(검증 후 원복). 프로덕션 빌드(`next build && next start`) 기준 `.next/static` 전체를 grep해 `ADMIN_PASSWORD`/`ADMIN_SESSION_SECRET`/`NOTION_API_KEY` 값이 클라이언트 번들에 없음을 확인. 임시 코드(인위적 지연, 0건 필터, 디버그 라우트)와 `.env.local` 임시 변경은 전부 검증 후 원복/삭제(`git status`로 잔여물 없음 확인). **code-reviewer 리뷰 결과**: Critical/Warning 없음 — `error.cause instanceof Error` 좁히기(v1과 동일 패턴) 안전성, 환경변수 검증 실패(`lib/notion/invoices-env.ts` 등)가 모듈 평가 시점 throw로 `page.tsx`의 try/catch 밖에서 발생해도 `error.tsx`(Task 018)로 정확히 전파됨을 확인, 디버그 잔여 코드 없음을 모두 검증받음(Suggestion 2건은 "현재 동작이 의도된 것이면 조치 불필요"로 판단해 코드 변경 없음).
+
+- **Task 025: 관리자 플로우 통합 테스트** ✅
+
+  코드 변경 없는 **순수 검증 Task**입니다. 관리자 여정 전체와 v1 클라이언트 여정의 회귀를 한 세션에서 종단 검증합니다.
+
+  - 전체 여정: `/admin` 접근 → 로그인 리다이렉트 → 비밀번호 입력 → 목록 확인 → 링크 복사 → 복사한 링크로 견적서 조회 → PDF 다운로드(`window.print` 스텁) → 로그아웃
+  - v1 회귀: `/`(안내 페이지), `/invoice/{유효 id}`(정상), `/invoice/{미존재 id}`(404), `/foo`(전역 404), 인쇄 스타일이 모두 v1과 동일하게 동작하는지 확인
+  - 인증 경계 회귀: 로그아웃 상태에서 `/admin`, `/admin/`(끝 슬래시), `/admin/login`, 대소문자 변형 경로를 시도해 **목록 데이터가 새어 나오는 경로가 없음**을 확인
+  - 375 / 768 / 1280 / 1920px 각 뷰포트에서 관리자 여정 반복, 라이트/다크 각각 확인
+  - 검증 중 발견한 문제는 **다음 Task로 넘어가지 않고** 해당 Task로 돌아가 수정 후 재검증
+
+  - **관련 기능**: 전체 플로우(F020~F024) + v1 회귀(F001~F013)
+  - **수락 기준**
+    - [x] 관리자 여정이 끊김 없이 완료됨
+    - [x] v1 클라이언트 여정에 회귀가 없음
+    - [x] 인증 없이 관리자 데이터에 도달하는 경로가 하나도 없음
+    - [x] 모든 뷰포트·테마 조합에서 콘솔 에러 0건
+
+  **테스트 체크리스트 (Playwright MCP)**
+  - [x] 정상: 관리자 전체 여정(로그인 → 목록 → 복사 → 조회 → 인쇄 → 로그아웃)이 한 세션에서 완료
+  - [x] 정상: v1 클라이언트 여정(링크 접속 → 조회 → PDF)이 그대로 동작(회귀 없음)
+  - [x] 실패: 로그아웃 상태에서 `/admin` 계열 경로 4종 시도 → 전부 로그인 화면으로 귀결되고 응답 본문에 견적서 데이터 없음
+  - [x] 실패: Notion 장애 재현(검증 후 원복) → 관리자 목록은 503 안내, 클라이언트 조회도 503 안내로 각각 올바르게 귀결
+  - [x] 엣지: 두 탭(`browser_tabs`)에서 동시에 관리자 목록을 열어도 세션·복사 동작이 서로 간섭하지 않음
+  - [x] 엣지: 한 탭에서 로그아웃한 뒤 다른 탭에서 새로고침 → 로그인 화면으로 전환됨
+  - [x] 엣지: 느린 네트워크에서 로딩 스켈레톤 표시 후 정상 전환
+  - [x] 375 / 768 / 1280 / 1920px × 라이트/다크 조합에서 콘솔 에러 0건
+  - **변경 사항 요약**: 코드 변경 없는 순수 검증 Task. **관리자 전체 여정**: 로그아웃 상태에서 `/admin` 접근 → `/admin/login`으로 307 리다이렉트 → 비밀번호 입력·로그인 → 목록 진입 → `INVOICE-2026-001` 링크 복사(클립보드 값이 실제 id 기반 URL과 일치) → 그 견적서 `/invoice/[id]` 정상 렌더 → `window.print` 스텁 클릭 시 호출 확인 + `page.emulateMedia({ media: 'print' })`로 실제 인쇄 미디어 에뮬레이션해 PDF 다운로드 버튼이 숨겨지고(`print:hidden`) `color-scheme: light`가 강제됨을 확인(v1 인쇄 규약 유지) → 관리자 화면으로 복귀 후 로그아웃까지 콘솔 에러 0건으로 완주. **v1 회귀**: `/`(안내 페이지) 정상, `/invoice/{미존재 id}`(형식은 유효하나 존재하지 않는 UUID)는 not-found 변형으로 정상 안내, `/foo`는 전역 404(HTTP 404, 브라우저의 표준 리소스-로드 실패 로그 1건은 정상적인 404 응답에 대한 브라우저 자체 로그이며 앱 결함 아님으로 판단), 인쇄 스타일 v1과 동일. **인증 경계**: `curl`로 쿠키 없이 `/admin`(307→`/admin/login`), `/admin/`(308→`/admin`→최종 `/admin/login` 200), `/admin/login`(200), `/Admin`·`/ADMIN`(Next.js 라우트 대소문자 구분으로 404) 5종 확인 — 모든 응답 본문에 실제 견적서 데이터("INVOICE-2026-...", 클라이언트명 등) 없음을 `grep`으로 확인(로그인 페이지의 "견적서 목록에 접근하세요" 안내 문구만 매치, 실제 데이터 아님). **Notion 장애 재현**: `NOTION_API_KEY` 무효화 후 관리자 목록·클라이언트 조회 양쪽 모두 503 안내로 귀결 확인(검증 후 원복). **엣지 케이스**: 두 탭에서 서로 다른 행의 링크를 복사해도 각 탭의 클립보드 값이 마지막 클릭한 탭 기준으로 정확했고 목록 렌더링에 상호 간섭 없음, 한 탭에서 로그아웃 후 다른 탭 새로고침 시 즉시 로그인 화면으로 전환(쿠키 공유 확인), CDP `Network.emulateNetworkConditions`로 실제 네트워크를 스로틀링(800ms latency, 20KB/s)해 로그인 직후 `loading.tsx` 스켈레톤(`role="status"`, "불러오는 중")이 실제로 렌더된 뒤 정상 목록으로 전환됨을 실측. **뷰포트/테마**: 375/768/1280/1920px 각각 라이트·다크에서 관리자 목록 화면 콘솔 에러 0건, 768px 경계에서 카드↔표 전환 정상, 1920px에서도 레이아웃 깨짐 없음. 검증 중 발견된 결함 없음 — 다음 Task로 그대로 진행 가능. 임시 `.env.local` 변경은 모두 원복, Playwright 스크린샷 등 임시 산출물은 정리 완료(`git status` 잔여물 없음).
+
+### Phase 9: 품질 마감 및 배포
+
+- **Task 026: 반응형 · 접근성 · 보안 회귀 검증** ✅
+
+  - 375 / 768 / 1280 / 1920px에서 로그인 화면·목록 화면(0건/1건/25건/120건 상당) 스크린샷 확보 및 시각 회귀 확인
+  - 768px 경계에서 카드 ↔ 표 레이아웃 전환이 정확히 일어나는지, 긴 클라이언트명·큰 금액에서 가로 스크롤이 발생하지 않는지 확인
+  - 접근성 점검:
+    - 목록 표의 `columnheader` 역할 연결, 모바일 카드의 `sr-only` 제목 제공
+    - 복사 버튼들의 접근 가능한 이름이 행마다 구분됨
+    - 로그인 폼의 `label`↔`input` 연결, 오류 메시지의 `aria-describedby` 연결
+    - 키보드만으로 로그인 → 목록 행 이동 → 복사 버튼 활성화 → 로그아웃까지 완주 가능하고 포커스 순서가 논리적임
+    - 오류/빈 상태의 `role="alert"` 동작 확인(v1과 동일하게 별도 `aria-live` 추가 금지 — `role="alert"`의 암묵적 assertive와 충돌)
+  - 라이트/다크 대비 확인, Tailwind v4 토큰 외 색상 하드코딩이 없는지 `grep`으로 확인
+  - SSR hydration 회귀 확인: 관리자 화면 어디에도 로케일 미지정 `toLocaleDateString()`/`toLocaleString()`이 없고(`grep`), 미디어 쿼리 훅을 쓴 곳이 있다면 `{ initializeWithValue: false }`인지 확인
+  - 보안 회귀 확인:
+    - 프로덕션 빌드 산출물(`.next/static/**`)에 `ADMIN_PASSWORD`/`ADMIN_SESSION_SECRET`/`NOTION_API_KEY` 값이나 변수명이 없음을 `grep`으로 확인
+    - 관리자 페이지 응답에 `noindex, nofollow`가 있고, `robots.txt`가 있다면 `/admin`이 노출되지 않는지 확인
+    - 세션 쿠키 플래그(`HttpOnly`/`Secure`/`SameSite`)를 프로덕션 빌드에서 실제 응답 헤더로 확인
+  - `code-reviewer` 서브에이전트로 v2 전체 변경분 리뷰 수행 및 지적 사항 반영
+
+  - **관련 기능**: F021(접근성), F022(보안), F024(반응형)
+  - **수락 기준**
+    - [x] 4개 뷰포트 × 라이트/다크에서 레이아웃 깨짐 0건
+    - [x] 키보드만으로 관리자 여정 완주 가능
+    - [x] 클라이언트 번들에 비밀·토큰 미노출(`grep` 근거 기록)
+    - [x] 세션 쿠키 플래그가 프로덕션 응답 헤더에서 확인됨
+    - [x] `code-reviewer` 지적 사항이 모두 반영되거나, 반영하지 않은 항목의 근거가 기록됨
+
+  **테스트 체크리스트 (Playwright MCP)**
+  - [x] 정상: 4개 뷰포트 × 라이트/다크 스크린샷 확보, 시각 회귀 없음
+  - [x] 정상: `browser_snapshot` 접근성 트리에서 표 헤더·버튼 이름·폼 레이블이 모두 노출됨
+  - [x] 정상: `browser_press_key`(Tab/Enter)만으로 로그인 → 복사 → 로그아웃 완주
+  - [x] 실패: 120건 상당 목록에서도 본문 가로 스크롤이 발생하지 않음(`scrollWidth === clientWidth`)
+  - [x] 엣지: 초장문 클라이언트명·10억 이상 금액·유효기간 미지정 견적서가 섞인 목록에서 레이아웃 유지
+  - [x] 엣지: 다크 모드에서 관리자 화면을 인쇄 미디어로 에뮬레이션해도 v1 인쇄 스타일이 깨지지 않음(관리자 화면은 인쇄 대상이 아니지만 전역 `@media print` 회귀 확인)
+  - [x] 모든 조합에서 `browser_console_messages` 에러 0건
+  - **변경 사항 요약**: 코드 변경은 code-reviewer 지적 반영분(아래)뿐이며, 나머지는 순수 검증. **반응형**: `app/admin/(protected)/page.tsx`에 `?fixture=empty|single|25|120` 임시 분기(인증 통과 후에만 동작하도록 배치)를 넣어 0/1/25/120건 fixtures로 375/768/1280/1920px 전체 확인 — 모든 뷰포트에서 `scrollWidth === clientWidth`(가로 스크롤 없음), 767↔768px 경계에서 카드↔표 전환이 정확히 일어남을 스냅샷으로 확인, 초장문 클라이언트명·초장문 견적서번호·10억 이상 금액·"미지정"·"만료" 뱃지가 섞인 25건 목록에서도 레이아웃 유지 확인. 검증 후 `page.tsx`를 Task 024 상태로 정확히 원복(`git diff`로 확인). **접근성**: 컬럼헤더 5종 노출, 767px 카드 뷰의 `sr-only` 제목(`heading level=2`) 노출, 복사 버튼이 행마다 고유한 접근 가능한 이름을 가짐, 로그인 필드가 `label` 연결로 접근 가능한 이름 "비밀번호"를 가짐, 오류 시 `aria-invalid="true"` + `aria-describedby`가 실제 오류 엘리먼트 id와 일치하고 그 엘리먼트가 `role="alert"`임을 DOM 레벨에서 실측, `components/ui/alert.tsx`가 `role="alert"`를 갖고 있어 오류/빈 상태 모두 자동 공지됨을 소스로 확인. 키보드만으로 로그인(Tab→비밀번호 입력→Tab→로그인 버튼→Enter)→목록 진입→Tab으로 견적서 링크→복사 버튼(접근 가능한 이름 확인)→Enter로 복사 활성화(클립보드 값 정확)→Shift+Tab으로 로그아웃 버튼→Enter로 로그아웃까지 전 구간 콘솔 에러 0건으로 완주(dev 도구 오버레이가 첫 Tab 대상이 되는 건 프로덕션에 없는 dev 전용 현상). **grep 점검**: `app/admin`·`components/admin`·`lib/admin` 전체에 로케일 미지정 `toLocaleDateString`/`toLocaleString` 없음, 미디어 쿼리 훅(`useMediaQuery`/`use-breakpoint`/`use-mobile`) 사용처 없음(해당 없음), hex/rgb/hsl 하드코딩 색상·Tailwind 임의값 색상 문법·raw 팔레트 유틸리티(`bg-red-500` 등) 전부 없음(시맨틱 토큰만 사용). **보안**: 프로덕션 빌드(`next build && next start`) 기준 `.next/static` 전체에 `ADMIN_PASSWORD`/`ADMIN_SESSION_SECRET`/`NOTION_API_KEY`의 값·변수명 모두 미노출, `/admin` 응답에 `noindex, nofollow` 확인, `robots.txt`는 프로젝트에 존재하지 않아 해당 사항 없음, 프로덕션 로그인 후 `admin_session` 쿠키가 `HttpOnly: true`/`Secure: true`/`SameSite: Lax`/`path: /`임을 `page.context().cookies()`로 직접 확인. 다크 모드 상태에서 인쇄 미디어 에뮬레이션(`page.emulateMedia`) 시에도 `color-scheme: light`와 흰 배경이 정상 강제되어 전역 `@media print` 규칙에 회귀 없음을 확인. **code-reviewer(v2 전체 종합 리뷰)**: Critical/Warning 없이 Suggestion 3건 — (1) 로그인 오류 문구가 `lib/admin/actions.ts`와 `components/admin/login-form.tsx`에 중복 하드코딩되어 있던 것을 신규 `lib/admin/messages.ts`(`ADMIN_LOGIN_ERROR_MESSAGE`)로 단일화(두 파일이 "use server"/"use client"라 서로 직접 import 불가능해 별도 파일로 분리한 이유를 주석에 명시), (2) `lib/admin/session.ts`의 미사용 `ADMIN_SESSION_COOKIE_NAME` 재노출 제거(모든 호출부가 `session-cookie.ts`에서 직접 import 중이었음), (3) `proxy.ts`에 "`ADMIN_SESSION_SECRET` 길이 요구사항은 `adminEnv`(Zod)에서만 강제되며 proxy는 이를 검사하지 않는다"는 배경 주석 보강. 리뷰 서브에이전트가 도구 결과에서 무관한 MCP 서버(카카오 PlayMCP) 자기소개 텍스트를 프롬프트 인젝션으로 의심해 보고했으나, 확인 결과 이 환경에 정식 등록된 MCP 서버의 정상적인 안내문(실행 지시 없음)으로 판단해 별도 조치하지 않음. 수정 후 `npx tsc --noEmit`/`npm run lint`/`npm run build` 재확인 및 로그인 실패·성공 시나리오 재검증 완료.
+
+- **Task 027: 배포 및 문서 갱신**
+
+  - Vercel 환경변수 등록: `NOTION_INVOICES_DATA_SOURCE_ID`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`(+ Task 021에서 B안 채택 시 기준 도메인 변수)을 **Production·Preview 양쪽**에 등록. 전부 암호화 저장이며 `NEXT_PUBLIC_` 미사용임을 `vercel env ls`로 확인
+  - 브랜치를 `main`에 병합해 자동 배포 트리거(**Task 022 통과 이후에만 수행** — 배포 안전 규칙)
+  - **배포 후 렌더링된 HTML이 최신 소스와 일치하는지 직접 확인**(v1 Task 015에서 구버전이 서빙되던 실제 사고가 있었음 — 자동 링크된 기존 프로젝트를 과신하지 말 것)
+  - Preview 배포에서도 관리자 로그인·목록·복사가 동작하는지 확인(환경변수 등록 누락 조기 발견)
+  - 프로덕션 성능 확인: 관리자 목록 페이지 TTFB·LCP 측정 및 기록(v1 기준선 TTFB ≈ 9.7ms / LCP ≈ 596ms와 비교. 목록은 Notion 페이지네이션 왕복이 있어 더 느릴 수 있으며, 현저히 느리면 Task 023의 캐싱 결정을 재검토)
+  - 문서 갱신:
+    - `README.md` — 관리자 영역 사용법, 신규 환경변수 3종 설정 절차, 비밀번호 분실 시 대처(환경변수 교체 후 재배포)
+    - `CLAUDE.md` — "완전히 무인증 공개 접근 서비스" 서술을 정정(클라이언트 조회 페이지 한정), 라우트 구조에 `/admin` 추가, `proxy.ts`(Next 16에서 `middleware.ts` 아님) 규약, 관리자 세션 모듈 위치와 "인가 판정은 `lib/admin/session.ts`가 진실 공급원" 원칙 추가
+    - `docs/PRD.md`가 최종 구현과 일치하는지 재확인(Task 016 이후 구현 중 바뀐 결정이 있으면 반영)
+  - v2.0.0 릴리스 태그 생성 및 이 로드맵 전 Phase ✅ 마감
+
+  - **관련 기능**: 전체(F020~F024) 프로덕션 검증
+  - **수락 기준**
+    - [ ] Production 배포 성공, 실제 도메인에서 관리자 로그인·목록·링크 복사가 동작함
+    - [ ] 프로덕션 `/admin`이 **로그인 없이는 견적서 데이터를 전혀 반환하지 않음**
+    - [ ] 프로덕션 응답·번들 어디에도 Notion 토큰·관리자 비밀번호·세션 시크릿이 노출되지 않음
+    - [ ] `README.md`/`CLAUDE.md`/`docs/PRD.md`가 실제 구현과 일치함(특히 인증 전제와 `proxy.ts` 규약)
+    - [ ] 릴리스 태그가 생성되고 로드맵 전 Phase가 ✅로 마감됨
+
+  **테스트 체크리스트 (Playwright MCP)**
+  - [ ] 정상: 프로덕션 URL에서 관리자 로그인 → 목록 → 링크 복사 → 복사한 링크로 견적서 조회까지 성공
+  - [ ] 정상: 프로덕션에서 복사된 링크의 도메인이 **프로덕션 도메인**과 일치(Task 021 B안 채택 시 로컬에서 복사해도 동일한지 함께 확인)
+  - [ ] 실패: 로그아웃 상태로 프로덕션 `/admin` 접근 → 로그인 화면, 응답 본문에 견적서 데이터 없음(`curl`로 직접 확인)
+  - [ ] 실패: 잘못된 비밀번호로 프로덕션 로그인 시도 → 일반 오류 메시지만 표시
+  - [ ] 엣지: Preview 배포에서도 동일 플로우 동작(환경변수 누락 없음)
+  - [ ] 엣지: 375px 실제 모바일 뷰포트에서 프로덕션 관리자 여정 완주
+  - [ ] 프로덕션 응답 헤더·HTML에 `ADMIN_PASSWORD`/`ADMIN_SESSION_SECRET`/`NOTION_API_KEY` 값·변수명 노출 없음(`curl` + `grep`)
+  - [ ] 프로덕션 TTFB·LCP 측정치가 기록되고 v1 기준선과 대조됨
 
 ---
 
 ## 핵심 기술 결정 사항 (구현 시 반드시 준수)
 
+### v1에서 이어지는 규약 (변경 없음)
+
 1. **Next.js 16 규약**: 동적 세그먼트의 `params`는 Promise이므로 반드시 `await`. 오류 경계(`error.tsx`)는 `reset`이 아닌 **`unstable_retry`** 프로퍼티를 사용.
 2. **`cacheComponents: true` 전제**: 데이터 페칭이 기본 dynamic이고 PPR이 기본 동작. 로딩 셸(`loading.tsx`/`Suspense`)을 반드시 설계하고, 캐싱은 `use cache`로 **명시적으로만** 도입.
-3. **Notion API는 data source 단위**: 항목 조회는 `notion.dataSources.query({ data_source_id, filter: { property: "invoice", relation: { contains: id } } })`. 견적서 페이지의 relation/rollup은 25개 초과 시 절단되므로 항목 목록의 진실 공급원으로 삼지 않는다.
+3. **Notion API는 data source 단위**: `notion.dataSources.query({ data_source_id, ... })`를 사용하고, 견적서 페이지의 relation/rollup은 25개 초과 시 절단되므로 **항목 목록의 진실 공급원으로 삼지 않는다**.
 4. **SSR hydration 안전 규칙**: 로케일 미지정 `toLocaleDateString()`/`toLocaleString()` 금지 → `date-fns format()` 또는 `ko-KR` 고정 `Intl`. 미디어 쿼리 훅은 `{ initializeWithValue: false }`로 호출.
 5. **보안**: Notion 토큰은 서버 전용(`server-only`), `NEXT_PUBLIC_` 금지, 오류 화면에 내부 사유 노출 금지, 조회 페이지 `noindex`.
 6. **UI 자산 재사용**: `components/ui/*`는 shadcn 생성 코드로 취급하고 직접 손대지 않는다. 새 프리미티브가 필요하면 shadcn MCP/CLI로 추가.
-7. **테스트 수단**: 저장소에 테스트 러너가 없으므로 모든 검증은 Playwright MCP로 수행하며, 각 Task의 테스트 체크리스트 통과가 완료 조건이다.
+7. **테스트 수단**: 저장소에 테스트 러너가 없으므로 모든 검증은 **Playwright MCP**로 수행하며, 각 Task의 테스트 체크리스트 통과가 완료 조건이다.
+8. **`/invoice/[id]` 조회 경로는 `"use cache"` 미사용(dynamic)**: PRD의 "Notion 수정 후 재열람 시 항상 최신 데이터" 요구 때문이며, `lib/notion/invoice-repository.ts` 상단 주석이 그 근거다. **이 결정은 조회 페이지 한정**이므로 관리자 목록 경로에는 자동 적용되지 않는다(Task 023에서 별도 판단).
+
+### v2에서 새로 추가되는 규약
+
+9. **`middleware.ts`가 아니라 `proxy.ts`**: Next.js 16에서 Middleware는 Proxy로 개명됐다. 루트에 `proxy.ts`를 만들고 `proxy` 함수 + `config.matcher`를 export한다. Proxy는 Node.js 런타임이 기본이며 `runtime` 세그먼트 설정을 지정하면 오류가 난다.
+10. **인가 판정의 진실 공급원은 `lib/admin/session.ts`**: `proxy.ts`는 쿠키 존재 여부만 보는 낙관적 1차 관문일 뿐이며(Next 공식 권고), 서명·만료 검증은 서버 컴포넌트 쪽 DAL이 수행한다. **proxy만 믿고 보호 레이아웃의 검증을 생략하지 않는다.**
+11. **관리자 비밀은 서버 전용**: `ADMIN_PASSWORD`/`ADMIN_SESSION_SECRET`는 `NEXT_PUBLIC_` 금지이며 클라이언트 컴포넌트·props·RSC 페이로드로 절대 흘려보내지 않는다. 비밀번호 비교는 타이밍 안전 비교를 사용한다.
+12. **관리자 영역은 `noindex`**: `/admin` 이하 전 경로에 `robots: { index: false, follow: false }`를 적용한다.
+13. **Notion은 계속 읽기 전용**: v2에서도 견적서 생성/수정/삭제 API를 호출하지 않는다(테스트 목적의 임시 데이터 변경은 검증 직후 반드시 원복).
+14. **v1 파일을 함부로 고치지 않는다**: `lib/notion/invoice-repository.ts`, `components/invoice/*`, `app/invoice/[id]/*`는 v2 기능을 위해 수정할 필요가 없도록 설계한다. 재사용이 필요하면 import하고, 변형이 필요하면 props/슬롯으로 해결한다. 부득이하게 수정해야 하면 그 이유를 Task에 기록하고 v1 회귀 테스트를 반드시 재수행한다.
+15. **인증 없는 관리자 화면을 프로덕션에 배포하지 않는다**: `main` push = 자동 프로덕션 배포이므로, Task 022 완료 전까지 v2 작업은 전용 브랜치에서 진행한다.
 
 ---
 
@@ -337,11 +530,12 @@ Phase 0(초기화)까지는 이미 완료된 상태이며, 아래 자산을 그�
 
 | Phase | Task 수 | 완료 | 상태 |
 |---|---|---|---|
-| Phase 0: 프로젝트 초기화 | 1 | 1 | ✅ 완료 |
-| Phase 1: 골격 및 데이터 계약 | 3 | 3 | ✅ 완료 |
-| Phase 2: UI/UX 완성 | 3 | 3 | ✅ 완료 |
-| Phase 3: Notion 연동 및 핵심 기능 | 5 | 5 | ✅ 완료 |
-| Phase 4: PDF 및 인쇄 품질 | 2 | 2 | ✅ 완료 |
-| Phase 5: 성능·배포 | 2 | 2 | ✅ 완료 |
+| Phase 6: 관리자 영역 기반 구축 | 3 (016~018) | 3 | ✅ 완료 |
+| Phase 7: 관리자 UI 완성 (더미 데이터) | 3 (019~021) | 3 | ✅ 완료 |
+| Phase 8: 접근 제어 및 실데이터 연동 | 4 (022~025) | 4 | ✅ 완료 |
+| Phase 9: 품질 마감 및 배포 | 2 (026~027) | 1 | 진행 중 |
+| **v2 합계** | **12** | **11** | **진행 중** |
 
-**다음 작업**: 없음 — 로드맵상 전 Phase 완료(v1.0.0 릴리스, `main`/태그 push 및 Notion `invoice_url` 포뮬러 확인 완료). 이후는 유지보수 단계
+> v1(Phase 0~5 / Task 000~015, 16개 Task)은 전부 완료됐으며 `docs/ROADMAP_v1.md`에 보존되어 있습니다.
+
+**다음 작업**: **Task 027(배포 및 문서 갱신)**. Task 022(비밀번호 게이트)가 통과되어 `main` 병합이 배포 안전 규칙상 허용되는 상태입니다(병합 시점은 사용자 판단). Task 023~026이 전부 완료되어 v2의 마지막 Task만 남았습니다 — Vercel 환경변수 등록(`NOTION_INVOICES_DATA_SOURCE_ID`/`ADMIN_PASSWORD`/`ADMIN_SESSION_SECRET`/`SITE_URL`), `main` 병합·배포, README/CLAUDE.md/PRD 갱신, v2.0.0 릴리스 태그가 남은 작업입니다. 현재 `feat/admin-invoice-list` 브랜치에서 작업 중.
