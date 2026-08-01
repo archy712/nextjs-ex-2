@@ -351,24 +351,25 @@ v1 완료 시점(v1.0.0, 프로덕션 배포 완료) 기준의 실제 상태이�
   - **관련 파일**: `lib/notion/invoice-list-repository.ts`(신규), `lib/notion/env.ts`, `lib/notion/property-names.ts`(읽기만), `lib/invoice/schema.ts`(필요 시 목록 전용 스키마 확장), `types/invoice.ts`
   - **관련 기능**: F020
   - **수락 기준**
-    - [ ] 실제 Notion 워크스페이스의 견적서 전건이 누락·중복 없이 반환됨
-    - [ ] 페이지 크기를 초과하는 상황에서 `has_more`/`next_cursor` 루프가 실제 Notion 응답으로 동작함
-    - [ ] 목록 조회 오류가 어떤 경우에도 404로 분류되지 않음
-    - [ ] 합계 금액·개별 행 파싱 실패·캐싱 3가지 결정이 이 문서와 코드 주석 양쪽에 기록됨
-    - [ ] Notion API 호출 수가 **견적서 건수와 무관하게 페이지네이션 횟수와 동일**(항목 재조회로 인한 N+1이 없음)
-    - [ ] `npx tsc --noEmit` / `npm run lint` / `npm run build` 무경고
+    - [x] 실제 Notion 워크스페이스의 견적서 전건이 누락·중복 없이 반환됨
+    - [x] 페이지 크기를 초과하는 상황에서 `has_more`/`next_cursor` 루프가 실제 Notion 응답으로 동작함
+    - [x] 목록 조회 오류가 어떤 경우에도 404로 분류되지 않음
+    - [x] 합계 금액·개별 행 파싱 실패·캐싱 3가지 결정이 이 문서와 코드 주석 양쪽에 기록됨
+    - [x] Notion API 호출 수가 **견적서 건수와 무관하게 페이지네이션 횟수와 동일**(항목 재조회로 인한 N+1이 없음)
+    - [x] `npx tsc --noEmit` / `npm run lint` / `npm run build` 무경고
 
   **테스트 체크리스트 (Playwright MCP)**
   > 이 Task 시점에는 화면 연결이 아직 없으므로, v1 Task 008에서 쓴 방식대로 **임시 Route Handler를 만들어 실제 Notion에 라이브 검증한 뒤 반드시 삭제**하고 `git status`로 잔여물이 없음을 확인합니다.
-  - [ ] 정상: 실제 워크스페이스의 견적서 전건 조회 → 건수·견적서 번호·클라이언트명·합계가 Notion 화면과 일치
-  - [ ] 정상: 정렬 순서가 결정한 규칙과 일치
-  - [ ] 실패: `NOTION_API_KEY`를 무효 값으로 교체(검증 후 즉시 원복) → `InvoiceUnavailableError`로 분류되고 404가 아님
-  - [ ] 실패: `NOTION_INVOICES_DATA_SOURCE_ID`를 존재하지 않는 ID로 교체(검증 후 원복) → 503 계열로 분류되고 오류 메시지에 토큰·내부 경로가 없음
-  - [ ] 실패: SDK `timeoutMs`를 임시로 1ms로 낮춰 타임아웃 강제(v1 Task 014에서 검증된 방법) → 무한 대기 없이 오류로 귀결
-  - [ ] 엣지: `dataSources.query`에 임시로 `page_size: 2`를 지정해 실제 응답을 강제 분할(v1 Task 014에서 검증된 방법) → 페이지네이션 루프가 누락·중복 없이 전건을 수집
-  - [ ] 엣지: 견적서 0건 상황(필터로 재현하거나 빈 데이터소스로 대체) → 빈 배열을 반환하고 예외를 던지지 않음
-  - [ ] 엣지: 속성이 비어 있는 견적서(클라이언트명 공백, `valid_until` 미지정, `total_amount` rollup `null`)를 실제로 만들어(검증 후 정리) 결정한 정책대로 처리되는지 확인
-  - [ ] 임시 검증 코드·데이터가 전부 원복/삭제되었음을 `git diff`·`git status`로 확인
+  - [x] 정상: 실제 워크스페이스의 견적서 전건 조회 → 건수·견적서 번호·클라이언트명·합계가 Notion 화면과 일치
+  - [x] 정상: 정렬 순서가 결정한 규칙과 일치
+  - [x] 실패: `NOTION_API_KEY`를 무효 값으로 교체(검증 후 즉시 원복) → `InvoiceUnavailableError`로 분류되고 404가 아님
+  - [x] 실패: `NOTION_INVOICES_DATA_SOURCE_ID`를 존재하지 않는 ID로 교체(검증 후 원복) → 503 계열로 분류되고 오류 메시지에 토큰·내부 경로가 없음
+  - [x] 실패: SDK `timeoutMs`를 임시로 1ms로 낮춰 타임아웃 강제(v1 Task 014에서 검증된 방법) → 무한 대기 없이 오류로 귀결
+  - [x] 엣지: `dataSources.query`에 임시로 `page_size: 2`를 지정해 실제 응답을 강제 분할(v1 Task 014에서 검증된 방법) → 페이지네이션 루프가 누락·중복 없이 전건을 수집
+  - [x] 엣지: 견적서 0건 상황(필터로 재현하거나 빈 데이터소스로 대체) → 빈 배열을 반환하고 예외를 던지지 않음
+  - [x] 엣지: 속성이 비어 있는 견적서(클라이언트명 공백, `valid_until` 미지정, `total_amount` rollup `null`)를 실제로 만들어(검증 후 정리) 결정한 정책대로 처리되는지 확인
+  - [x] 임시 검증 코드·데이터가 전부 원복/삭제되었음을 `git diff`·`git status`로 확인
+  - **변경 사항 요약**: `lib/notion/invoice-list-repository.ts` 신규 구현(`listInvoices()`) — `notion.dataSources.query`(`created_time` 내림차순, `page_size: 100`)로 Invoices 데이터소스를 `has_more`/`next_cursor` 루프로 전건 수집(최대 50회/약 5,000건 가드, 초과 시 `console.warn`). `notionInvoicePageSchema`(Task 017)를 재사용해 매핑하고, `InvoiceUnavailableError`(v1 `invoice-repository.ts`에서 import, 파일은 수정 안 함)로만 오류를 분류(404 없음). **결정 3가지**: (1) 정렬은 `created_time` 내림차순(발행 직후 확인 니즈 우선), (2) 합계는 `total_amount` rollup을 그대로 사용해 N+1 방지하고 null이면 null 그대로 반환(0원과 구분), (3) 개별 행 파싱 실패는 skip+경고 로그. `types/invoice.ts`의 `InvoiceSummary.totalAmount`를 `number | null`로, `lib/invoice/format.ts`의 `formatCurrency`를 `number | null`(null → "—") 수용하도록 확장 — v1 `Invoice`/`invoice-total.tsx` 호출부에는 영향 없음(`npx tsc --noEmit` 확인). 실제 Notion 워크스페이스(3건)로 정상 조회·정렬 확인, `NOTION_API_KEY`/`NOTION_INVOICES_DATA_SOURCE_ID` 무효화·`timeoutMs=1` 강제 타임아웃 모두 `InvoiceUnavailableError`로 귀결 확인(검증 후 즉시 원복), `page_size:2` 강제 분할로 4건 페이지네이션 무손실 확인, 임시 견적서(항목 0개)로 rollup Sum이 빈 relation에서도 `null`이 아닌 `0`을 반환함을 실측(테스트 데이터는 검증 후 Notion에서 archive 처리), 존재할 수 없는 필터로 0건 케이스 확인. 임시 Route Handler(`app/api/debug-invoices`)와 `.env.local`/`lib/notion/client.ts`(`timeoutMs`) 임시 변경은 전부 검증 후 원복·삭제(`git status`로 잔여물 없음 확인). **code-reviewer 지적으로 수정**: (1) 조회된 행이 1건 이상인데 전부 파싱 실패 시 빈 배열(="견적서 0건"으로 오인) 대신 `InvoiceUnavailableError`로 승격하도록 가드 추가(전면적 스키마 드리프트와 "일부 결측"을 구분), (2) `page_size: 100`을 명시해 페이지네이션 가드 주석의 전제(Notion 기본값 100)와 코드를 일치, (3) rollup null 관련 주석에 실측 근거(Sum 함수는 빈 relation에서 0 반환)와 함수 변경 시 재검증 필요성을 명시. 수정 후 재차 라이브 검증(3건 정상 반환) 완료.
 
 - **Task 024: 목록 페이지 실데이터 연결 및 오류 분기 (F020 / F023)**
 
