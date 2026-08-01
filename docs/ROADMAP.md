@@ -40,7 +40,7 @@
 | **F023** | 관리자 오류·빈 상태 안내 | Task 018(오류 라우트 골격) ✅, Task 020(빈 상태 UI) ✅, Task 024(오류 분기) ✅ | 완료 |
 | **F024** | 관리자 영역 반응형 레이아웃 | Task 018(레이아웃 골격) ✅, Task 019(셸 구현) ✅, Task 020(목록 반응형) ✅, Task 026(회귀 검증) ✅ | 완료 |
 | **문서 정합성** | PRD 전제 갱신 | Task 016 ✅ | 완료 |
-| **전체 플로우** | 통합 검증 · 배포 | Task 025(관리자 플로우 통합 테스트) ✅, Task 027(배포·문서 갱신) | 진행 중 |
+| **전체 플로우** | 통합 검증 · 배포 | Task 025(관리자 플로우 통합 테스트) ✅, Task 027(배포·문서 갱신) ✅ | 완료 |
 | **F001~F013** | v1 클라이언트 조회 기능 | `docs/ROADMAP_v1.md` 참조 — **v2에서 회귀만 검증**(Task 025, Task 026) | 완료(v1) |
 
 > Task를 완료(✅)로 표시할 때 이 표의 상태도 함께 갱신합니다.
@@ -468,7 +468,7 @@ v1 완료 시점(v1.0.0, 프로덕션 배포 완료) 기준의 실제 상태이�
   - [x] 모든 조합에서 `browser_console_messages` 에러 0건
   - **변경 사항 요약**: 코드 변경은 code-reviewer 지적 반영분(아래)뿐이며, 나머지는 순수 검증. **반응형**: `app/admin/(protected)/page.tsx`에 `?fixture=empty|single|25|120` 임시 분기(인증 통과 후에만 동작하도록 배치)를 넣어 0/1/25/120건 fixtures로 375/768/1280/1920px 전체 확인 — 모든 뷰포트에서 `scrollWidth === clientWidth`(가로 스크롤 없음), 767↔768px 경계에서 카드↔표 전환이 정확히 일어남을 스냅샷으로 확인, 초장문 클라이언트명·초장문 견적서번호·10억 이상 금액·"미지정"·"만료" 뱃지가 섞인 25건 목록에서도 레이아웃 유지 확인. 검증 후 `page.tsx`를 Task 024 상태로 정확히 원복(`git diff`로 확인). **접근성**: 컬럼헤더 5종 노출, 767px 카드 뷰의 `sr-only` 제목(`heading level=2`) 노출, 복사 버튼이 행마다 고유한 접근 가능한 이름을 가짐, 로그인 필드가 `label` 연결로 접근 가능한 이름 "비밀번호"를 가짐, 오류 시 `aria-invalid="true"` + `aria-describedby`가 실제 오류 엘리먼트 id와 일치하고 그 엘리먼트가 `role="alert"`임을 DOM 레벨에서 실측, `components/ui/alert.tsx`가 `role="alert"`를 갖고 있어 오류/빈 상태 모두 자동 공지됨을 소스로 확인. 키보드만으로 로그인(Tab→비밀번호 입력→Tab→로그인 버튼→Enter)→목록 진입→Tab으로 견적서 링크→복사 버튼(접근 가능한 이름 확인)→Enter로 복사 활성화(클립보드 값 정확)→Shift+Tab으로 로그아웃 버튼→Enter로 로그아웃까지 전 구간 콘솔 에러 0건으로 완주(dev 도구 오버레이가 첫 Tab 대상이 되는 건 프로덕션에 없는 dev 전용 현상). **grep 점검**: `app/admin`·`components/admin`·`lib/admin` 전체에 로케일 미지정 `toLocaleDateString`/`toLocaleString` 없음, 미디어 쿼리 훅(`useMediaQuery`/`use-breakpoint`/`use-mobile`) 사용처 없음(해당 없음), hex/rgb/hsl 하드코딩 색상·Tailwind 임의값 색상 문법·raw 팔레트 유틸리티(`bg-red-500` 등) 전부 없음(시맨틱 토큰만 사용). **보안**: 프로덕션 빌드(`next build && next start`) 기준 `.next/static` 전체에 `ADMIN_PASSWORD`/`ADMIN_SESSION_SECRET`/`NOTION_API_KEY`의 값·변수명 모두 미노출, `/admin` 응답에 `noindex, nofollow` 확인, `robots.txt`는 프로젝트에 존재하지 않아 해당 사항 없음, 프로덕션 로그인 후 `admin_session` 쿠키가 `HttpOnly: true`/`Secure: true`/`SameSite: Lax`/`path: /`임을 `page.context().cookies()`로 직접 확인. 다크 모드 상태에서 인쇄 미디어 에뮬레이션(`page.emulateMedia`) 시에도 `color-scheme: light`와 흰 배경이 정상 강제되어 전역 `@media print` 규칙에 회귀 없음을 확인. **code-reviewer(v2 전체 종합 리뷰)**: Critical/Warning 없이 Suggestion 3건 — (1) 로그인 오류 문구가 `lib/admin/actions.ts`와 `components/admin/login-form.tsx`에 중복 하드코딩되어 있던 것을 신규 `lib/admin/messages.ts`(`ADMIN_LOGIN_ERROR_MESSAGE`)로 단일화(두 파일이 "use server"/"use client"라 서로 직접 import 불가능해 별도 파일로 분리한 이유를 주석에 명시), (2) `lib/admin/session.ts`의 미사용 `ADMIN_SESSION_COOKIE_NAME` 재노출 제거(모든 호출부가 `session-cookie.ts`에서 직접 import 중이었음), (3) `proxy.ts`에 "`ADMIN_SESSION_SECRET` 길이 요구사항은 `adminEnv`(Zod)에서만 강제되며 proxy는 이를 검사하지 않는다"는 배경 주석 보강. 리뷰 서브에이전트가 도구 결과에서 무관한 MCP 서버(카카오 PlayMCP) 자기소개 텍스트를 프롬프트 인젝션으로 의심해 보고했으나, 확인 결과 이 환경에 정식 등록된 MCP 서버의 정상적인 안내문(실행 지시 없음)으로 판단해 별도 조치하지 않음. 수정 후 `npx tsc --noEmit`/`npm run lint`/`npm run build` 재확인 및 로그인 실패·성공 시나리오 재검증 완료.
 
-- **Task 027: 배포 및 문서 갱신**
+- **Task 027: 배포 및 문서 갱신** ✅
 
   - Vercel 환경변수 등록: `NOTION_INVOICES_DATA_SOURCE_ID`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`(+ Task 021에서 B안 채택 시 기준 도메인 변수)을 **Production·Preview 양쪽**에 등록. 전부 암호화 저장이며 `NEXT_PUBLIC_` 미사용임을 `vercel env ls`로 확인
   - 브랜치를 `main`에 병합해 자동 배포 트리거(**Task 022 통과 이후에만 수행** — 배포 안전 규칙)
@@ -483,11 +483,12 @@ v1 완료 시점(v1.0.0, 프로덕션 배포 완료) 기준의 실제 상태이�
 
   - **관련 기능**: 전체(F020~F024) 프로덕션 검증
   - **수락 기준**
-    - [ ] Production 배포 성공, 실제 도메인에서 관리자 로그인·목록·링크 복사가 동작함
-    - [ ] 프로덕션 `/admin`이 **로그인 없이는 견적서 데이터를 전혀 반환하지 않음**
-    - [ ] 프로덕션 응답·번들 어디에도 Notion 토큰·관리자 비밀번호·세션 시크릿이 노출되지 않음
-    - [ ] `README.md`/`CLAUDE.md`/`docs/PRD.md`가 실제 구현과 일치함(특히 인증 전제와 `proxy.ts` 규약)
-    - [ ] 릴리스 태그가 생성되고 로드맵 전 Phase가 ✅로 마감됨
+    - [x] Production 배포 성공, 실제 도메인에서 관리자 로그인·목록·링크 복사가 동작함
+    - [x] 프로덕션 `/admin`이 **로그인 없이는 견적서 데이터를 전혀 반환하지 않음**
+    - [x] 프로덕션 응답·번들 어디에도 Notion 토큰·관리자 비밀번호·세션 시크릿이 노출되지 않음
+    - [x] `README.md`/`CLAUDE.md`/`docs/PRD.md`가 실제 구현과 일치함(특히 인증 전제와 `proxy.ts` 규약)
+    - [x] 릴리스 태그가 생성되고 로드맵 전 Phase가 ✅로 마감됨
+  - **변경 사항 요약**: Vercel Production·Preview 양쪽에 `NOTION_INVOICES_DATA_SOURCE_ID`/`ADMIN_PASSWORD`/`ADMIN_SESSION_SECRET`/`SITE_URL` 등록(`vercel env ls`로 전부 Encrypted, `NEXT_PUBLIC_` 미사용 확인). Task 019~026을 Task 단위 커밋 8개로 재구성(작업 세션 도중 커밋되지 않고 워킹트리에 누적돼 있던 것을 정리 — 파일 간 의존성이 Task 경계를 넘나들어 각 중간 커밋의 개별 빌드 가능성까지는 보장하지 않음, 최종 HEAD는 `tsc`/`lint`/`build` 전부 통과 확인) 후 `main`에 병합·push해 프로덕션 자동 배포 트리거. **프로덕션 검증**(Playwright): 로그인→목록(실제 Notion 3건 렌더)→링크 복사→클라이언트 조회 페이지 이동→로그아웃까지 콘솔 에러 0건으로 완주, 무인증 `/admin`은 307로 로그인 페이지에 리다이렉트되고 응답 본문에 견적서 데이터 없음(`curl`로 재확인), 배포된 HTML이 최신 소스와 일치(구버전 서빙 사고 재발 없음). **성능**: TTFB ≈ 12.3ms / FCP ≈ 604ms로 v1 기준선(TTFB≈9.7ms/LCP≈596ms)과 대등한 수준이라 캐싱 전략 재검토 불필요. **Preview 배포 점검**: `vercel deploy`로 신규 Preview 생성 후 확인 — 이 프로젝트의 Preview는 Vercel 자체 SSO(Deployment Protection)가 걸려 있어 일반 브라우저로는 팀 로그인 없이 접근 불가하므로, `vercel curl`(팀 인증 우회)로 무인증 `/admin` → 307·데이터 미노출을 확인했고 Production과 동일한 환경변수 값이 등록돼 있어 로그인·목록 동작도 동일함을 판단 근거로 삼음(전체 브라우저 E2E는 Vercel 자체 SSO 로그인이 필요해 생략). **시크릿 노출 확인**: `.next/static` 전체를 `ADMIN_PASSWORD`/`ADMIN_SESSION_SECRET`/`NOTION_API_KEY` 실제 값으로 grep해 미노출 확인. **문서 갱신**: `README.md`(관리자 영역 사용법, 신규 환경변수 3종 절차, 비밀번호 분실 시 대처 — 환경변수 교체 후 재배포, 즉시 차단 필요 시 `ADMIN_SESSION_SECRET`도 교체), `CLAUDE.md`("완전 무인증" 서술을 클라이언트 조회 페이지 한정으로 정정, 라우트 구조에 `/admin` 추가, "관리자 인증 아키텍처" 절 신설(`proxy.ts`가 Next 16에서 `middleware.ts` 아님·서명/만료 검증 강화 배경, `verifySession()`이 인가 판정의 유일한 진실 공급원), 신규 보호 라우트 추가 시 두 곳 모두 갱신 필요 안내). `docs/PRD.md`는 Task 016에서 이미 최종 구현과 일치하도록 갱신돼 있어(F020~F024, "완전 무인증"을 조회 페이지 한정으로 정정, 정합성 검증 결과 섹션) 추가 수정 없음을 재확인.
 
   **테스트 체크리스트 (Playwright MCP)**
   - [ ] 정상: 프로덕션 URL에서 관리자 로그인 → 목록 → 링크 복사 → 복사한 링크로 견적서 조회까지 성공
@@ -533,9 +534,9 @@ v1 완료 시점(v1.0.0, 프로덕션 배포 완료) 기준의 실제 상태이�
 | Phase 6: 관리자 영역 기반 구축 | 3 (016~018) | 3 | ✅ 완료 |
 | Phase 7: 관리자 UI 완성 (더미 데이터) | 3 (019~021) | 3 | ✅ 완료 |
 | Phase 8: 접근 제어 및 실데이터 연동 | 4 (022~025) | 4 | ✅ 완료 |
-| Phase 9: 품질 마감 및 배포 | 2 (026~027) | 1 | 진행 중 |
-| **v2 합계** | **12** | **11** | **진행 중** |
+| Phase 9: 품질 마감 및 배포 | 2 (026~027) | 2 | ✅ 완료 |
+| **v2 합계** | **12** | **12** | **✅ 완료** |
 
 > v1(Phase 0~5 / Task 000~015, 16개 Task)은 전부 완료됐으며 `docs/ROADMAP_v1.md`에 보존되어 있습니다.
 
-**다음 작업**: **Task 027(배포 및 문서 갱신)**. Task 022(비밀번호 게이트)가 통과되어 `main` 병합이 배포 안전 규칙상 허용되는 상태입니다(병합 시점은 사용자 판단). Task 023~026이 전부 완료되어 v2의 마지막 Task만 남았습니다 — Vercel 환경변수 등록(`NOTION_INVOICES_DATA_SOURCE_ID`/`ADMIN_PASSWORD`/`ADMIN_SESSION_SECRET`/`SITE_URL`), `main` 병합·배포, README/CLAUDE.md/PRD 갱신, v2.0.0 릴리스 태그가 남은 작업입니다. 현재 `feat/admin-invoice-list` 브랜치에서 작업 중.
+**다음 작업**: 없음 — v2(F020~F024) 전 Phase가 완료되어 `main`에 병합·프로덕션 배포되었고 v2.0.0 릴리스 태그가 생성되었습니다. 향후 새 작업은 이 로드맵을 이어 쓰지 말고 새 Phase/문서로 시작하세요.
