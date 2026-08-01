@@ -223,7 +223,7 @@ v1 완료 시점(v1.0.0, 프로덕션 배포 완료) 기준의 실제 상태이�
     - [x] `/invoice/[id]` 화면에 시각적 회귀가 없음(관리자 셸이 전역 레이아웃을 오염시키지 않음)
   - **변경 사항 요약**: shadcn으로 `input`/`label` 추가, `AdminShell`(헤더+로그아웃 버튼 자리)과 `LoginForm`(`useActionState` + no-op 스텁 액션, 하드코딩된 단일 실패 문구) 구현, `app/admin/login/page.tsx`·`app/admin/(protected)/layout.tsx`에 연결. Playwright로 375/768/1280px·라이트/다크 스크린샷, 키보드 포커스 링, `type="password"` 마스킹, 제출 후 콘솔 에러 0건, `/invoice/[id]`·`/admin` 회귀 없음을 확인. **code-reviewer 지적으로 수정**: `AdminShell`이 자체 `<main>`을 가지면서 `(protected)/page.tsx`·`loading.tsx`·`error.tsx`도 각자 `<main>`을 갖고 있어 `<main>` 랜드마크가 중복 렌더되던 문제를 발견 — 세 파일을 `<div>`로 변경해 `<main>`을 문서당 1개로 유지. 로딩 스피너에 `aria-hidden` 추가.
 
-- **Task 020: 견적서 목록 화면 UI 구현 (더미 데이터)**
+- **Task 020: 견적서 목록 화면 UI 구현 (더미 데이터)** ✅
 
   - `lib/invoice/fixtures.ts`에 목록용 더미 추가 — `invoiceSummaryFixtures: InvoiceSummary[]`. **0건 / 1건 / 25건 / 120건**(페이지네이션·성능 감각용), **클라이언트명 초장문 / 견적서 번호 초장문 / 유효기간 `null` / 만료된 건 / 합계 0원 / 10억 이상 금액**을 포함할 것
   - `components/admin/invoice-list-table.tsx` — 목록 표시. 컬럼: 견적서 번호 / 클라이언트명 / 유효기간(만료 시 `Badge`) / 합계 금액 / 링크 복사 버튼
@@ -237,12 +237,13 @@ v1 완료 시점(v1.0.0, 프로덕션 배포 완료) 기준의 실제 상태이�
   - **관련 파일**: `components/admin/invoice-list-table.tsx`(신규), `components/admin/admin-empty-state.tsx`(신규), `lib/invoice/fixtures.ts`, `app/admin/(protected)/{page,loading}.tsx`
   - **관련 기능**: F020(목록 UI), F023(빈 상태), F024(반응형)
   - **수락 기준**
-    - [ ] 0건 / 1건 / 25건 / 120건 더미 모두 정상 렌더되고, 120건에서도 본문 가로 스크롤이 발생하지 않음
-    - [ ] 375px에서 카드 레이아웃, 768px 이상에서 표 레이아웃으로 전환됨
-    - [ ] 초장문 클라이언트명이 레이아웃을 깨뜨리지 않고 줄바꿈/말줄임 처리됨
-    - [ ] 유효기간 `null`인 견적서가 오류 없이 "미지정"(문구 확정) 형태로 표시됨
-    - [ ] 라이트/다크 모두 콘솔 에러·hydration 경고 0건
-    - [ ] `npm run lint` / `npm run build` 무경고
+    - [x] 0건 / 1건 / 25건 / 120건 더미 모두 정상 렌더되고, 120건에서도 본문 가로 스크롤이 발생하지 않음
+    - [x] 375px에서 카드 레이아웃, 768px 이상에서 표 레이아웃으로 전환됨
+    - [x] 초장문 클라이언트명이 레이아웃을 깨뜨리지 않고 줄바꿈/말줄임 처리됨
+    - [x] 유효기간 `null`인 견적서가 오류 없이 "미지정"(문구 확정) 형태로 표시됨
+    - [x] 라이트/다크 모두 콘솔 에러·hydration 경고 0건
+    - [x] `npm run lint` / `npm run build` 무경고
+  - **변경 사항 요약**: `lib/invoice/fixtures.ts`에 `InvoiceSummary` 더미 4세트(0/1/25/120건, id prefix `...9000...`로 v1과 분리) 추가. `invoice-list-table.tsx`(v1 `invoice-items-table.tsx`와 동일한 CSS 전용 반응형 분기, 링크 복사는 Task 021 예정 disabled placeholder), `admin-empty-state.tsx` 신규 구현. `nextjs-app-developer` 서브에이전트로 구현하고 code-reviewer로 재검토. **code-reviewer 지적으로 발견/수정**: (1) `cacheComponents: true` 환경에서 `isInvoiceExpired()`의 `Date.now()` 때문에 `/admin` 정적 프리렌더가 빌드 타임에 실패 — `app/admin/(protected)/page.tsx`에 `connection()`(next/server) 호출을 추가해 해결(Next.js 공식 문서의 `unstable_noStore` 대체 패턴과 일치, `loading.tsx`가 이미 Suspense 경계를 제공하므로 별도 `<Suspense>` 불필요, `npm run build` 결과 `/admin`이 Partial Prerender로 정상 분류됨을 확인). (2) `AdminEmptyState`와 Task 019 `error.tsx`가 `AdminShell`의 `<main className="p-4 sm:p-6">` 안에서 다시 `p-6`을 중첩해 패딩이 이중 적용되던 문제 — 두 파일 모두 자체 패딩 제거. Playwright로 1280/375px·라이트/다크 스크린샷, 실제 Notion 견적서·`/admin/login` 회귀 없음 확인.
 
 - **Task 021: 클라이언트 조회 링크 복사 기능 구현 (F021)**
 
