@@ -289,7 +289,7 @@ v1 완료 시점(v1.0.0, 프로덕션 배포 완료) 기준의 실제 상태이�
 
 ### Phase 8: 접근 제어 및 Notion 실데이터 연동
 
-- **Task 022: 비밀번호 게이트 구현 (F022)**
+- **Task 022: 비밀번호 게이트 구현 (F022)** ✅
 
   `/admin` 영역을 서버 전용 환경변수의 단일 비밀번호로 보호합니다. **인증 관련 비즈니스 로직이므로 테스트 체크리스트가 필수이며, 이 Task가 통과하기 전에는 `main` 병합·프로덕션 배포를 하지 않습니다.**
 
@@ -301,7 +301,7 @@ v1 완료 시점(v1.0.0, 프로덕션 배포 완료) 기준의 실제 상태이�
   - `lib/admin/actions.ts` 신설(`'use server'`):
     - `loginAction(prevState, formData)` — Zod로 입력 검증 → `verifyPassword` → 성공 시 `cookies().set(...)` 후 `/admin`으로 `redirect`, 실패 시 **동일한 일반 오류 메시지** 반환. 실패 시에도 응답 시간 차이가 크게 나지 않도록 주의
     - `logoutAction()` — 쿠키 삭제 후 `/admin/login`으로 `redirect`
-  - `proxy.ts`(루트, **`middleware.ts` 아님**) — `matcher: ["/admin/:path*"]`로 한정하고, 세션 쿠키 **존재 여부만** 확인해 없으면 `/admin/login`으로 리다이렉트. `/admin/login` 자체는 matcher에서 제외하거나 함수 내부에서 예외 처리. **서명 검증을 proxy에서 하지 않는 이유**(Next 공식 권고: proxy는 낙관적 검사 전용)를 파일 상단 주석에 명시
+  - `proxy.ts`(루트, **`middleware.ts` 아님**) — `matcher: ["/admin/:path*"]`로 한정. `/admin/login` 자체는 함수 내부에서 예외 처리. **[구현 중 계획 변경]** 최초엔 이 문서 원안대로 쿠키 **존재 여부만** 확인했으나, `(protected)` 세그먼트가 `cacheComponents`(PPR) 대상이라 정적 셸이 먼저 200으로 스트리밍되고 그 다음에야 `page.tsx`의 `verifySession()` 실패가 감지되어, 위조/만료 쿠키에 대해 진짜 307이 아니라 클라이언트 전용 소프트 리다이렉트만 발생하는 문제가 실제로 재현됨(curl 등 비-JS 클라이언트는 로그인 화면으로 이동하지 않고 AdminShell 뼈대가 담긴 200 응답에 머무름 — 상세 원인은 아래 변경 사항 요약 참고). 이를 막기 위해 proxy가 **서명(HMAC)·만료까지 검증**하도록 강화했다(`lib/admin/session-token.ts`의 순수 함수 재사용). `verifySession()`은 여전히 심층 방어로 유지
   - `app/admin/(protected)/layout.tsx` — `verifySession()`을 호출해 실패 시 `redirect("/admin/login")`. **proxy를 우회해 직접 요청이 들어와도 여기서 반드시 차단**됨
   - Task 019의 스텁 폼을 실제 `loginAction`에 연결, 셸의 로그아웃 버튼을 `logoutAction`에 연결
   - 로그인 성공 후 원래 가려던 경로로 되돌리는 `returnTo` 처리는 **도입하지 않는다**(보호 경로가 `/admin` 하나뿐이라 불필요 — 과설계 회피). 이 판단을 주석에 남길 것
@@ -311,24 +311,28 @@ v1 완료 시점(v1.0.0, 프로덕션 배포 완료) 기준의 실제 상태이�
   - **관련 파일**: `proxy.ts`(신규, 루트), `lib/admin/session.ts`(신규), `lib/admin/actions.ts`(신규), `lib/admin/env.ts`, `app/admin/(protected)/layout.tsx`, `components/admin/login-form.tsx`, `components/admin/admin-shell.tsx`
   - **관련 기능**: F022
   - **수락 기준**
-    - [ ] 비밀번호·세션 시크릿이 클라이언트 번들·HTML·RSC 페이로드 어디에도 등장하지 않음(빌드 산출물 `grep`으로 확인)
-    - [ ] 세션 쿠키가 `HttpOnly`이며 프로덕션 빌드에서 `Secure` 플래그가 설정됨
-    - [ ] 비밀번호 비교가 타이밍 안전 함수로 수행됨
-    - [ ] proxy를 우회해도(직접 RSC 요청 등) `(protected)` 레이아웃에서 차단됨
-    - [ ] `/invoice/[id]`·`/`·전역 404는 **로그인 없이 그대로 접근 가능**(무인증 유지 회귀 없음)
-    - [ ] `npx tsc --noEmit` / `npm run lint` / `npm run build` 무경고
+    - [x] 비밀번호·세션 시크릿이 클라이언트 번들·HTML·RSC 페이로드 어디에도 등장하지 않음(빌드 산출물 `grep`으로 확인)
+    - [x] 세션 쿠키가 `HttpOnly`이며 프로덕션 빌드에서 `Secure` 플래그가 설정됨
+    - [x] 비밀번호 비교가 타이밍 안전 함수로 수행됨
+    - [x] proxy를 우회해도(직접 RSC 요청 등) `(protected)` 레이아웃에서 차단됨
+    - [x] `/invoice/[id]`·`/`·전역 404는 **로그인 없이 그대로 접근 가능**(무인증 유지 회귀 없음)
+    - [x] `npx tsc --noEmit` / `npm run lint` / `npm run build` 무경고
 
   **테스트 체크리스트 (Playwright MCP)**
-  - [ ] 정상: 올바른 비밀번호 입력 → `/admin`으로 리다이렉트되고 목록 화면 진입, 새로고침·재방문 시 다시 묻지 않음(세션 유지)
-  - [ ] 정상: 로그아웃 클릭 → `/admin/login`으로 이동하고, 이후 `/admin` 직접 접근 시 다시 로그인 화면으로 리다이렉트
-  - [ ] 실패: 잘못된 비밀번호 → "비밀번호가 올바르지 않습니다"만 표시되고, 힌트·내부 정보·스택이 노출되지 않음
-  - [ ] 실패: 빈 비밀번호 제출 → 서버 액션이 예외 없이 검증 오류를 반환
-  - [ ] 실패: 로그인하지 않은 상태로 `/admin` 직접 접근 → 로그인 화면으로 리다이렉트되고, **`browser_network_requests`로 응답 본문에 견적서 데이터가 단 한 건도 포함되지 않음**을 확인
-  - [ ] 엣지: 쿠키 값을 `browser_evaluate`로 임의 문자열로 변조 → 서명 검증 실패로 로그인 화면으로 리다이렉트
-  - [ ] 엣지: 쿠키의 만료 시각 부분만 미래로 조작 → 서명 불일치로 거부됨(서명이 만료 시각을 실제로 보호하는지 검증)
-  - [ ] 엣지: `ADMIN_PASSWORD`를 임시로 다른 값으로 교체(검증 후 원복) → 기존 세션 쿠키의 동작과 새 로그인 동작을 확인하고 결과를 기록
-  - [ ] 엣지: 로그인 상태에서 `/invoice/[id]`를 열어도 관리자 UI가 섞여 나오지 않음
-  - [ ] `browser_console_messages`에 에러 0건
+  - [x] 정상: 올바른 비밀번호 입력 → `/admin`으로 리다이렉트되고 목록 화면 진입, 새로고침·재방문 시 다시 묻지 않음(세션 유지)
+  - [x] 정상: 로그아웃 클릭 → `/admin/login`으로 이동하고, 이후 `/admin` 직접 접근 시 다시 로그인 화면으로 리다이렉트
+  - [x] 실패: 잘못된 비밀번호 → "비밀번호가 올바르지 않습니다"만 표시되고, 힌트·내부 정보·스택이 노출되지 않음
+  - [x] 실패: 빈 비밀번호 제출 → 서버 액션이 예외 없이 검증 오류를 반환
+  - [x] 실패: 로그인하지 않은 상태로 `/admin` 직접 접근 → 로그인 화면으로 리다이렉트되고, **`browser_network_requests`로 응답 본문에 견적서 데이터가 단 한 건도 포함되지 않음**을 확인
+  - [x] 엣지: 쿠키 값을 `browser_evaluate`로 임의 문자열로 변조 → 서명 검증 실패로 로그인 화면으로 리다이렉트
+  - [x] 엣지: 쿠키의 만료 시각 부분만 미래로 조작 → 서명 불일치로 거부됨(서명이 만료 시각을 실제로 보호하는지 검증)
+  - [x] 엣지: `ADMIN_PASSWORD`를 임시로 다른 값으로 교체(검증 후 원복) → 기존 세션 쿠키의 동작과 새 로그인 동작을 확인하고 결과를 기록
+  - [x] 엣지: 로그인 상태에서 `/invoice/[id]`를 열어도 관리자 UI가 섞여 나오지 않음
+  - [x] `browser_console_messages`에 에러 0건
+  - **변경 사항 요약**: `lib/admin/session.ts`(`verifyPassword`/`createSessionCookieValue`/`verifySession`), `lib/admin/actions.ts`(`loginAction`/`logoutAction`), `proxy.ts` 신규 구현. `nextjs-app-developer` 서브에이전트로 구현, 제가 `.next/static` 시크릿 grep·Playwright 재검증 후 `code-reviewer`(보안 중심)로 리뷰했습니다.
+    - **[Critical] 발견 및 수정**: `code-reviewer`가 프로덕션 빌드(`next build && next start`)로 실제 재현 — 이름만 맞고 서명이 무효한 `admin_session` 쿠키로 `/admin`에 접근하면 진짜 307이 아니라 **HTTP 200 + AdminShell 뼈대**(제목/로그아웃 버튼, 견적서 데이터는 없음)가 응답됨. 원인: `(protected)` 세그먼트가 `cacheComponents`(PPR) 대상이라 `layout.tsx`의 정적 셸이 먼저 200으로 스트리밍을 시작하고, 그 다음에야 `page.tsx`의 `verifySession()` 실패로 `redirect()`가 호출되는데 이 시점엔 HTTP 상태 코드를 이미 확정한 뒤라 Next.js가 클라이언트 전용 소프트 리다이렉트(RSC 스트림의 메타 신호)로만 대응함(Next.js 공식 문서 `functions/redirect.md` "streaming context" 절에 명문화된 동작 — 버그 아님). curl 등 비-JS 클라이언트는 리다이렉트되지 않고 그 200 응답에 머무름.
+    - **수정**: `lib/admin/session-token.ts`(신규, 순수 함수, `server-only`/`next/headers` 미의존)로 서명·만료 검증 로직을 분리해 `proxy.ts`가 재사용하도록 강화 — proxy가 **서명·만료까지** 검증해 위조/만료 쿠키도 렌더링이 시작되기 전에 진짜 307로 걸러냄(`lib/admin/env.ts`의 eager Zod 검증은 끌어오지 않음 — `ADMIN_SESSION_SECRET`만 `process.env`에서 직접 읽음). `verifySession()`(`lib/admin/session.ts`)은 proxy 우회(matcher 설정 실수, 향후 리팩터링) 대비 심층 방어로 유지. 수정 후 프로덕션 빌드로 재검증(garbage 쿠키 → 307 확인)하고 재차 `code-reviewer` 검증 완료.
+    - 그 외 반영: 서명 버퍼를 `hex` 인코딩으로 명시적 디코딩(Suggestion), 로그인 비밀번호 입력에 `.max(200)` 상한 추가(Suggestion).
 
 - **Task 023: 견적서 목록 조회 계층 구현 (F020)**
 
